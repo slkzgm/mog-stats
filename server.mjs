@@ -14,7 +14,7 @@ const ABS_SEARCH_BEARER = process.env.ABS_SEARCH_BEARER || "";
 const ALLOWED_AVATAR_HOST_SUFFIX = ".abs.xyz";
 const CARD_IMAGE_WIDTH = 1600;
 const CARD_IMAGE_HEIGHT = 520;
-const KEY_ICON_ASSET = "assets/bundle_2.png";
+const KEY_ICON_ASSET = "assets/key_big.png";
 const JACKPOT_ICON_ASSET = "assets/jackpot_big.png";
 let cardIconDataUrlsPromise = null;
 
@@ -230,15 +230,14 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
   const netPillY = topPad + 2;
 
   const statCard = (x, y, label, value, iconDataUrl = "", iconType = "") => {
-    const iconShellX = x + statW - 50;
-    const iconShellY = y + 10;
-    const iconSize = iconType === "key" ? 29 : 23;
-    const iconOffset = (34 - iconSize) / 2;
+    const iconW = iconType === "key" ? 46 : 42;
+    const iconH = iconW;
+    const iconX = x + statW - iconW - 14;
+    const iconY = y + (statH - iconH) / 2;
 
     const iconMarkup = iconDataUrl
       ? `
-      <rect x="${iconShellX}" y="${iconShellY}" width="34" height="34" rx="10" fill="rgba(8, 26, 43, 0.68)" stroke="rgba(130, 188, 230, 0.34)" stroke-width="1.5"/>
-      <image href="${iconDataUrl}" x="${iconShellX + iconOffset}" y="${iconShellY + iconOffset}" width="${iconSize}" height="${iconSize}" preserveAspectRatio="xMidYMid meet" opacity="0.98"/>
+      <image href="${iconDataUrl}" x="${iconX}" y="${iconY}" width="${iconW}" height="${iconH}" preserveAspectRatio="xMidYMid meet" opacity="0.96"/>
     `
       : "";
 
