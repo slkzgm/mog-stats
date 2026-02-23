@@ -11,7 +11,7 @@ const ABS_SEARCH_ENDPOINT = "https://backend.portal.abs.xyz/api/search/global";
 const ABS_SEARCH_BEARER = process.env.ABS_SEARCH_BEARER || "";
 const ALLOWED_AVATAR_HOST_SUFFIX = ".abs.xyz";
 const CARD_IMAGE_WIDTH = 1600;
-const CARD_IMAGE_HEIGHT = 520;
+const CARD_IMAGE_HEIGHT = 460;
 const CARD_BG_ASSET = "assets/bg-main.png";
 const KEY_ICON_ASSET = "assets/key_big.png";
 const JACKPOT_ICON_ASSET = "assets/jackpot_big.png";
@@ -379,14 +379,16 @@ const buildPlayerCardSvg = (
   const leftPad = panelX + 34;
   const topPad = panelY + 34;
 
-  const statY = panelY + 132;
+  const statY = panelY + 126;
   const statGap = 16;
   const statW = (panelW - 72 - statGap * 3) / 4;
   const statH = 102;
-  const metaY1 = panelY + 252;
-  const metaY2 = panelY + 326;
   const metaW = (panelW - 72 - statGap) / 2;
   const metaH = 56;
+  const metaBottomPad = 22;
+  const metaGapY = 12;
+  const metaY2 = panelY + panelH - metaH - metaBottomPad;
+  const metaY1 = metaY2 - metaH - metaGapY;
 
   const safeDisplayName = payload.displayName.length > 18 ? `${payload.displayName.slice(0, 17)}...` : payload.displayName;
 
@@ -449,7 +451,7 @@ const buildPlayerCardSvg = (
     `;
 
   const decorMarkup = decorDataUrl
-    ? `<image href="${decorDataUrl}" x="${panelX + panelW - 154}" y="${panelY + panelH - 154}" width="122" height="122" preserveAspectRatio="xMidYMid meet" opacity="0.22"/>`
+    ? `<image href="${decorDataUrl}" x="${panelX + panelW - 116}" y="${panelY + panelH - 116}" width="92" height="92" preserveAspectRatio="xMidYMid meet" opacity="0.16"/>`
     : "";
 
   return `
