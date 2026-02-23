@@ -24,6 +24,7 @@ const shareStatus = document.querySelector("#share-status");
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const WEI_IN_ETH = 10n ** 18n;
 const SEARCH_DEBOUNCE_MS = 180;
+const COPY_SOUND_URL = "/assets/copy.mp3";
 
 let selectedProfile = null;
 let lastSearchToken = 0;
@@ -32,7 +33,7 @@ let currentWallet = "";
 let currentCardData = null;
 let copyFlashTimer = null;
 let copyButtonResetTimer = null;
-let audioContext = null;
+let copySound = null;
 
 const withSign = (valueWei) => {
   if (valueWei > 0n) return `+${formatEth(valueWei)} ETH`;
@@ -69,43 +70,45 @@ function showShareStatus(message) {
   shareStatus.textContent = message;
 }
 
-function getAudioContext() {
-  if (audioContext) return audioContext;
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  if (!Ctx) return null;
-  audioContext = new Ctx();
-  return audioContext;
+function getCopySound() {
+  if (copySound) return copySound;
+  copySound = new Audio(COPY_SOUND_URL);
+  copySound.preload = "auto";
+  copySound.volume = 0.72;
+  return copySound;
 }
 
-function playCopySound() {
+async function primeCopySound() {
+  const sound = getCopySound();
+  if (sound.dataset.primed === "1") return;
+
+  const previousMuted = sound.muted;
+  const previousVolume = sound.volume;
+  sound.muted = true;
+  sound.volume = 0;
+
   try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-
-    const low = ctx.createOscillator();
-    low.type = "triangle";
-    low.frequency.setValueAtTime(620, now);
-    low.frequency.exponentialRampToValueAtTime(790, now + 0.13);
-    low.connect(gain);
-    low.start(now);
-    low.stop(now + 0.2);
-
-    const high = ctx.createOscillator();
-    high.type = "sine";
-    high.frequency.setValueAtTime(980, now + 0.015);
-    high.frequency.exponentialRampToValueAtTime(1360, now + 0.13);
-    high.connect(gain);
-    high.start(now + 0.015);
-    high.stop(now + 0.2);
+    await sound.play();
   } catch {
-    // Sound is optional UX sugar.
+    // Some browsers may still block. Keep going.
+  } finally {
+    sound.pause();
+    sound.currentTime = 0;
+    sound.muted = previousMuted;
+    sound.volume = previousVolume;
+    sound.dataset.primed = "1";
+  }
+}
+
+async function playCopySound() {
+  const sound = getCopySound();
+  try {
+    sound.currentTime = 0;
+    await sound.play();
+    return true;
+  } catch {
+    showShareStatus(`Card image copied. Sound file unavailable (${COPY_SOUND_URL}).`);
+    return false;
   }
 }
 
@@ -475,8 +478,9 @@ copyImageBtn.addEventListener("click", async () => {
 
   setCopyButtonState("busy");
   try {
+    await primeCopySound();
     await copyCardAsImage();
-    playCopySound();
+    await playCopySound();
     flashCopyFeedback();
     setCopyButtonState("done");
     if (copyButtonResetTimer) clearTimeout(copyButtonResetTimer);
