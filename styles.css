@@ -345,21 +345,45 @@ button:active {
   background: rgba(0, 0, 0, 0.17);
 }
 
-.stat-key,
-.stat-jackpot {
-  padding-right: 46px;
+.stat-with-icon {
+  padding-right: 62px;
 }
 
-.stat-badge {
+.stat-icon-shell {
   position: absolute;
   top: 8px;
   right: 10px;
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  opacity: 0.92;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(130, 188, 230, 0.34);
+  background: rgba(8, 26, 43, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 12px rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
-  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.3));
+}
+
+.stat-badge {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+  opacity: 0.98;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.28));
+}
+
+.stat-badge-key {
+  width: 28px;
+  height: 28px;
+  transform: translateY(0.5px);
+}
+
+.stat-badge-jackpot {
+  width: 22px;
+  height: 22px;
 }
 
 .stat span {
@@ -522,16 +546,31 @@ button:active {
     padding: 10px;
   }
 
-  .stat-key,
-  .stat-jackpot {
-    padding-right: 40px;
+  .stat-with-icon {
+    padding-right: 54px;
+  }
+
+  .stat-icon-shell {
+    top: 7px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
   }
 
   .stat-badge {
-    top: 7px;
-    right: 8px;
     width: 20px;
     height: 20px;
+  }
+
+  .stat-badge-key {
+    width: 24px;
+    height: 24px;
+  }
+
+  .stat-badge-jackpot {
+    width: 19px;
+    height: 19px;
   }
 
   .meta-grid span {
