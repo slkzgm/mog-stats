@@ -39,21 +39,23 @@ pnpm dev:vercel
 - `HASURA_ADMIN_SECRET` (optional)
 - `ABS_SEARCH_BEARER` (optional)
 
-## Background Image: Where to Rename / Replace
+## Assets: Background / Ghost / Copy Sound
 
-Current background image file:
+Current files:
 
-- `assets/bg-default.svg`
+- `assets/bg-main.png` (main page background)
+- `assets/ghost.gif` (decorative ghost in the panel)
+- `assets/copy.mp3` (copy-as-image sound)
 
-Current CSS variable using it:
+Current CSS variable for background:
 
-- `styles.css` (in `:root`): `--bg-image-url: url("/assets/bg-default.svg");`
+- `styles.css` (in `:root`): `--bg-image-url: url("/assets/bg-main.png");`
 
 To use your own background:
 
 1. Put your file in `assets/` (example: `assets/my-bg.jpg`).
 2. Edit `styles.css` and change:
-   - from `--bg-image-url: url("/assets/bg-default.svg");`
+   - from `--bg-image-url: url("/assets/bg-main.png");`
    - to `--bg-image-url: url("/assets/my-bg.jpg");`
 
-You can also keep the same filename and just replace `assets/bg-default.svg`.
+For ghost/sound, keep the same filenames (`assets/ghost.gif`, `assets/copy.mp3`) or update paths in `index.html` / `app.js`.

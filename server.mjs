@@ -20,6 +20,15 @@ const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
 };
 
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
@@ -50,7 +59,7 @@ const sendJson = (res, statusCode, payload) => {
   res.end(JSON.stringify(payload));
 };
 
-const sendFile = async (res, path) => {
+const sendFile = async (res, path, headOnly = false) => {
   try {
     const file = await readFile(path);
     const ext = extname(path);
@@ -58,7 +67,7 @@ const sendFile = async (res, path) => {
       "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
       "Cache-Control": "no-store",
     });
-    res.end(file);
+    res.end(headOnly ? undefined : file);
   } catch {
     sendJson(res, 404, { error: "Not found" });
   }
@@ -432,14 +441,25 @@ const fetchAvatarImage = async (rawUrl) => {
 const app = createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://${HOST}:${PORT}`);
+    const isGetOrHead = req.method === "GET" || req.method === "HEAD";
+    const headOnly = req.method === "HEAD";
 
-    if (req.method === "GET" && url.pathname === "/") {
-      await sendFile(res, join(process.cwd(), "index.html"));
+    if (isGetOrHead && url.pathname === "/") {
+      await sendFile(res, join(process.cwd(), "index.html"), headOnly);
       return;
     }
 
-    if (req.method === "GET" && (url.pathname === "/styles.css" || url.pathname === "/app.js")) {
-      await sendFile(res, join(process.cwd(), url.pathname.slice(1)));
+    if (isGetOrHead && (url.pathname === "/styles.css" || url.pathname === "/app.js")) {
+      await sendFile(res, join(process.cwd(), url.pathname.slice(1)), headOnly);
+      return;
+    }
+
+    if (isGetOrHead && url.pathname.startsWith("/assets/")) {
+      if (url.pathname.includes("..")) {
+        sendJson(res, 400, { error: "Invalid asset path" });
+        return;
+      }
+      await sendFile(res, join(process.cwd(), url.pathname.slice(1)), headOnly);
       return;
     }
 

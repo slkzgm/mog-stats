@@ -106,8 +106,12 @@ async function playCopySound() {
     sound.currentTime = 0;
     await sound.play();
     return true;
-  } catch {
-    showShareStatus(`Card image copied. Sound file unavailable (${COPY_SOUND_URL}).`);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "NotAllowedError") {
+      showShareStatus("Card image copied. Sound is blocked until browser media is enabled.");
+      return false;
+    }
+    showShareStatus("Card image copied. Could not play sound.");
     return false;
   }
 }
