@@ -4,7 +4,7 @@
     "api/player-card-image.js": {
       "memory": 1024,
       "maxDuration": 15,
-      "includeFiles": "assets/*.png"
+      "includeFiles": "assets/**/*"
     },
     "api/*.js": {
       "maxDuration": 10

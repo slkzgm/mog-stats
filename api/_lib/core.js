@@ -1,6 +1,7 @@
 import { Resvg } from "@resvg/resvg-js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -14,6 +15,7 @@ const CARD_IMAGE_HEIGHT = 520;
 const CARD_BG_ASSET = "assets/bg-main.png";
 const KEY_ICON_ASSET = "assets/key_big.png";
 const JACKPOT_ICON_ASSET = "assets/jackpot_big.png";
+const PROJECT_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 let cardIconDataUrlsPromise = null;
 
 const PLAYER_STATS_QUERY = `
@@ -287,7 +289,7 @@ const loadCardIconDataUrls = async () => {
 
   const toDataUrl = async (assetPath) => {
     try {
-      const body = await readFile(join(process.cwd(), assetPath));
+      const body = await readFile(join(PROJECT_ROOT, assetPath));
       return `data:image/png;base64,${body.toString("base64")}`;
     } catch {
       return "";
@@ -395,16 +397,16 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
       <stop offset="100%" stop-color="#0d2f3f"/>
     </linearGradient>
     <linearGradient id="bgTintGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(9, 19, 31, 0.9)"/>
-      <stop offset="48%" stop-color="rgba(17, 39, 59, 0.86)"/>
-      <stop offset="100%" stop-color="rgba(15, 47, 60, 0.88)"/>
+      <stop offset="0%" stop-color="rgba(9, 19, 31, 0.78)"/>
+      <stop offset="48%" stop-color="rgba(17, 39, 59, 0.74)"/>
+      <stop offset="100%" stop-color="rgba(15, 47, 60, 0.76)"/>
     </linearGradient>
     <radialGradient id="bgGlowLeft" cx="0.02" cy="0.04" r="0.9">
-      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.14)"/>
+      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.12)"/>
       <stop offset="72%" stop-color="rgba(118, 211, 255, 0)"/>
     </radialGradient>
     <radialGradient id="bgGlowRight" cx="0.98" cy="0.08" r="0.84">
-      <stop offset="0%" stop-color="rgba(57, 246, 202, 0.1)"/>
+      <stop offset="0%" stop-color="rgba(57, 246, 202, 0.09)"/>
       <stop offset="74%" stop-color="rgba(57, 246, 202, 0)"/>
     </radialGradient>
     <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
@@ -415,7 +417,7 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
   </defs>
 
   <rect width="${width}" height="${height}" fill="url(#bgBaseGrad)"/>
-  ${icons.bgImage ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" opacity="0.34"/>` : ""}
+  ${icons.bgImage ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" opacity="0.58"/>` : ""}
   <rect width="${width}" height="${height}" fill="url(#bgTintGrad)"/>
   <rect width="${width}" height="${height}" fill="url(#bgGlowLeft)"/>
   <rect width="${width}" height="${height}" fill="url(#bgGlowRight)"/>
