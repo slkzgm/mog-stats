@@ -61,6 +61,28 @@ const PLAYER_STATS_QUERY = `
 query WalletOverview($wallet: String!) {
   PlayerStats(where: { wallet: { _eq: $wallet } }) {
     wallet
+    profileName
+    profileImageUrl
+    profileVerification
+    profileFetchAttempted
+    keyPurchaseAmount
+    keyPurchaseEvents
+    keysPurchased
+    weeklyClaimAmount
+    weeklyClaimEvents
+    jackpotClaimAmount
+    jackpotClaimEvents
+    firstSeenBlock
+    updatedAtBlock
+    updatedAtTimestamp
+  }
+}
+`;
+
+const PLAYER_STATS_QUERY_LEGACY = `
+query WalletOverview($wallet: String!) {
+  PlayerStats(where: { wallet: { _eq: $wallet } }) {
+    wallet
     keyPurchaseAmount
     keyPurchaseEvents
     keysPurchased
@@ -521,8 +543,22 @@ const fetchGraphql = async (query, variables = {}) => {
 };
 
 const fetchPlayerStats = async (wallet) => {
-  const body = await fetchGraphql(PLAYER_STATS_QUERY, { wallet });
-  return body.data?.PlayerStats?.[0] || null;
+  try {
+    const body = await fetchGraphql(PLAYER_STATS_QUERY, { wallet });
+    return body.data?.PlayerStats?.[0] || null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "GraphQL error";
+    if (
+      message.includes("profileName") ||
+      message.includes("profileImageUrl") ||
+      message.includes("profileVerification") ||
+      message.includes("profileFetchAttempted")
+    ) {
+      const legacyBody = await fetchGraphql(PLAYER_STATS_QUERY_LEGACY, { wallet });
+      return legacyBody.data?.PlayerStats?.[0] || null;
+    }
+    throw error;
+  }
 };
 
 const fetchGlobalStats = async (limit = 100) => {

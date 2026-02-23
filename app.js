@@ -478,6 +478,20 @@ async function resolveProfileForWallet(wallet) {
   }
 }
 
+function resolveIndexedProfile(stats) {
+  const name = typeof stats?.profileName === "string" ? stats.profileName.trim() : "";
+  const image = typeof stats?.profileImageUrl === "string" ? stats.profileImageUrl.trim() : "";
+  const verification = typeof stats?.profileVerification === "string" ? stats.profileVerification.trim() : "";
+
+  if (!name && !image) return null;
+  return {
+    name,
+    address: stats.wallet,
+    image,
+    verification: verification || null,
+  };
+}
+
 function setWalletInUrl(wallet) {
   const url = new URL(window.location.href);
   url.searchParams.set("view", "wallet");
@@ -651,6 +665,9 @@ async function loadWalletStats(wallet, profile = null, options = {}) {
   }
 
   let effectiveProfile = profile;
+  if (!effectiveProfile) {
+    effectiveProfile = resolveIndexedProfile(payload.stats);
+  }
   if (!effectiveProfile) {
     effectiveProfile = await resolveProfileForWallet(wallet);
   }
