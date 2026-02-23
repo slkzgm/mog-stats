@@ -17,8 +17,16 @@ const CARD_IMAGE_HEIGHT = 460;
 const CARD_BG_ASSET = "assets/bg-main.png";
 const KEY_ICON_ASSET = "assets/key_big.png";
 const JACKPOT_ICON_ASSET = "assets/jackpot_big.png";
+const CARD_FONT_SANS_REGULAR_ASSET = "assets/fonts/NotoSans-Regular.ttf";
+const CARD_FONT_SANS_BOLD_ASSET = "assets/fonts/NotoSans-Bold.ttf";
+const CARD_FONT_MONO_REGULAR_ASSET = "assets/fonts/NotoSansMono-Regular.ttf";
 const PROJECT_ROOT = fileURLToPath(new URL("./", import.meta.url));
 const ASSETS_DIR = join(PROJECT_ROOT, "assets");
+const CARD_FONT_FILES = [
+  join(PROJECT_ROOT, CARD_FONT_SANS_REGULAR_ASSET),
+  join(PROJECT_ROOT, CARD_FONT_SANS_BOLD_ASSET),
+  join(PROJECT_ROOT, CARD_FONT_MONO_REGULAR_ASSET),
+];
 let cardRenderAssetsPromise = null;
 let decorGifPathsPromise = null;
 
@@ -311,10 +319,10 @@ const buildPlayerCardSvg = (
     <g>
       <rect x="${x}" y="${y}" width="${statW}" height="${statH}" rx="24" fill="url(#statFillGrad)" stroke="rgba(114, 183, 230, 0.3)" stroke-width="2"/>
       ${iconMarkup}
-      <text x="${x + 24}" y="${y + 34}" fill="#9eb8d1" font-size="16" font-family="Arial, sans-serif" font-weight="600" letter-spacing="2.2">${escapeXml(
+      <text x="${x + 24}" y="${y + 34}" fill="#9eb8d1" font-size="16" font-family="Noto Sans, sans-serif" font-weight="600" letter-spacing="2.2">${escapeXml(
         label,
       )}</text>
-      <text x="${x + 24}" y="${y + 82}" fill="#edf7ff" font-size="26" font-family="Arial, sans-serif" font-weight="700">${escapeXml(
+      <text x="${x + 24}" y="${y + 82}" fill="#edf7ff" font-size="26" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
         value,
       )} ETH</text>
     </g>
@@ -324,7 +332,7 @@ const buildPlayerCardSvg = (
   const metaCard = (x, y, text) => `
     <g>
       <rect x="${x}" y="${y}" width="${metaW}" height="${metaH}" rx="20" fill="url(#metaFillGrad)" stroke="rgba(114, 183, 230, 0.23)" stroke-width="2"/>
-      <text x="${x + 22}" y="${y + 39}" fill="#aac4db" font-size="20" font-family="Arial, sans-serif">${escapeXml(text)}</text>
+      <text x="${x + 22}" y="${y + 39}" fill="#aac4db" font-size="20" font-family="Noto Sans, sans-serif">${escapeXml(text)}</text>
     </g>
   `;
 
@@ -342,7 +350,7 @@ const buildPlayerCardSvg = (
         </linearGradient>
       </defs>
       <circle cx="${leftPad + 44}" cy="${topPad + 44}" r="40" fill="url(#avatarFallbackGrad)"/>
-      <text x="${leftPad + 44}" y="${topPad + 58}" fill="#062638" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" font-weight="700">${escapeXml(
+      <text x="${leftPad + 44}" y="${topPad + 58}" fill="#062638" text-anchor="middle" font-size="40" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
           safeDisplayName.slice(0, 1).toUpperCase() || "?",
         )}</text>
     `;
@@ -398,15 +406,15 @@ const buildPlayerCardSvg = (
 
   ${avatarMarkup}
 
-  <text x="${leftPad + 118}" y="${topPad + 40}" fill="#edf7ff" font-size="56" font-family="Arial, sans-serif" font-weight="700">${escapeXml(
+  <text x="${leftPad + 118}" y="${topPad + 40}" fill="#edf7ff" font-size="56" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
     safeDisplayName,
   )}</text>
-  <text x="${leftPad + 118}" y="${topPad + 88}" fill="#9eb8d1" font-size="22" font-family="DejaVu Sans Mono, monospace">${escapeXml(
+  <text x="${leftPad + 118}" y="${topPad + 88}" fill="#9eb8d1" font-size="22" font-family="Noto Sans Mono, monospace">${escapeXml(
     `(${payload.shortWallet})`,
   )}</text>
 
   <rect x="${netPillX}" y="${netPillY}" width="${netPillW}" height="66" rx="33" fill="${netPalette.fill}" stroke="${netPalette.stroke}" stroke-width="2.5"/>
-  <text x="${netPillX + netPillW / 2}" y="${netPillY + 44}" text-anchor="middle" fill="${netPalette.text}" font-size="32" font-family="Arial, sans-serif" font-weight="700">${escapeXml(
+  <text x="${netPillX + netPillW / 2}" y="${netPillY + 44}" text-anchor="middle" fill="${netPalette.text}" font-size="32" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
     netLabel,
   )}</text>
 
@@ -693,6 +701,11 @@ const app = createServer(async (req, res) => {
         fitTo: {
           mode: "width",
           value: CARD_IMAGE_WIDTH,
+        },
+        font: {
+          fontFiles: CARD_FONT_FILES,
+          loadSystemFonts: false,
+          defaultFontFamily: "Noto Sans",
         },
       });
 
