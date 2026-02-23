@@ -294,26 +294,27 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
       <stop offset="100%" stop-color="#0d2f3f"/>
     </linearGradient>
     <linearGradient id="bgTintGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(9, 19, 31, 0.92)"/>
-      <stop offset="48%" stop-color="rgba(17, 39, 59, 0.88)"/>
-      <stop offset="100%" stop-color="rgba(15, 47, 60, 0.9)"/>
+      <stop offset="0%" stop-color="rgba(9, 19, 31, 0.9)"/>
+      <stop offset="48%" stop-color="rgba(17, 39, 59, 0.86)"/>
+      <stop offset="100%" stop-color="rgba(15, 47, 60, 0.88)"/>
     </linearGradient>
     <radialGradient id="bgGlowLeft" cx="0.02" cy="0.04" r="0.9">
-      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.2)"/>
+      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.14)"/>
       <stop offset="72%" stop-color="rgba(118, 211, 255, 0)"/>
     </radialGradient>
     <radialGradient id="bgGlowRight" cx="0.98" cy="0.08" r="0.84">
-      <stop offset="0%" stop-color="rgba(57, 246, 202, 0.14)"/>
+      <stop offset="0%" stop-color="rgba(57, 246, 202, 0.1)"/>
       <stop offset="74%" stop-color="rgba(57, 246, 202, 0)"/>
     </radialGradient>
     <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.12)"/>
-      <stop offset="100%" stop-color="rgba(11, 29, 48, 0.9)"/>
+      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.08)"/>
+      <stop offset="34%" stop-color="rgba(9, 21, 36, 0.94)"/>
+      <stop offset="100%" stop-color="rgba(9, 21, 36, 0.86)"/>
     </linearGradient>
   </defs>
 
   <rect width="${width}" height="${height}" fill="url(#bgBaseGrad)"/>
-  ${icons.bgImage ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" opacity="0.82"/>` : ""}
+  ${icons.bgImage ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" opacity="0.34"/>` : ""}
   <rect width="${width}" height="${height}" fill="url(#bgTintGrad)"/>
   <rect width="${width}" height="${height}" fill="url(#bgGlowLeft)"/>
   <rect width="${width}" height="${height}" fill="url(#bgGlowRight)"/>

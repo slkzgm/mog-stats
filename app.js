@@ -45,15 +45,18 @@ function shortAddress(address) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-function formatEth(valueWei, decimals = 6) {
+function formatEth(valueWei, decimals = 4) {
   const negative = valueWei < 0n;
   const abs = negative ? -valueWei : valueWei;
+  const scale = 10n ** BigInt(decimals);
 
-  const integerPart = abs / WEI_IN_ETH;
-  const fractionPart = abs % WEI_IN_ETH;
+  // Round to the nearest display unit (e.g. 0.0001 when decimals=4).
+  const roundedAbs = (abs * scale + WEI_IN_ETH / 2n) / WEI_IN_ETH;
+  if (roundedAbs === 0n) return "0";
 
-  const scaled = (fractionPart * 10n ** BigInt(decimals)) / WEI_IN_ETH;
-  const fractionString = scaled.toString().padStart(decimals, "0").replace(/0+$/, "");
+  const integerPart = roundedAbs / scale;
+  const fractionPart = roundedAbs % scale;
+  const fractionString = fractionPart.toString().padStart(decimals, "0").replace(/0+$/, "");
 
   const pretty = fractionString.length ? `${integerPart.toString()}.${fractionString}` : integerPart.toString();
   return `${negative ? "-" : ""}${pretty}`;
