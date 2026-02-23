@@ -458,19 +458,52 @@ document.addEventListener("click", (event) => {
   }
 });
 
+async function resolveWalletOrUsername(rawInput) {
+  const input = rawInput.trim();
+  const lowered = input.toLowerCase();
+  if (!input) {
+    throw new Error("Enter an Abstract username or wallet address.");
+  }
+
+  if (WALLET_REGEX.test(lowered)) {
+    const profile = selectedProfile && selectedProfile.address === lowered ? selectedProfile : null;
+    return { wallet: lowered, profile };
+  }
+
+  const response = await fetch(`/api/search?query=${encodeURIComponent(input)}`);
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || "Search API error");
+  }
+
+  const users = payload.users || [];
+  if (!users.length) {
+    throw new Error("No profile found for this username.");
+  }
+
+  const exactName = users.find((user) => (user.name || "").trim().toLowerCase() === lowered);
+  const match = exactName || users[0];
+  return {
+    wallet: (match.address || "").toLowerCase(),
+    profile: {
+      name: match.name || "",
+      address: (match.address || "").toLowerCase(),
+      image: match.image || "",
+      verification: match.verification || null,
+    },
+  };
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const wallet = walletInput.value.trim().toLowerCase();
-  if (!WALLET_REGEX.test(wallet)) {
-    showError("Invalid wallet format (expected: 0x + 40 hex chars).");
-    return;
-  }
-
-  const profile = selectedProfile && selectedProfile.address === wallet ? selectedProfile : null;
-
   try {
+    const { wallet, profile } = await resolveWalletOrUsername(walletInput.value);
+    if (profile?.name) {
+      selectedProfile = profile;
+    }
     await loadWalletStats(wallet, profile);
+    walletInput.value = wallet;
     clearSuggestions();
   } catch (error) {
     showError(error instanceof Error ? error.message : "Unexpected error");
