@@ -379,16 +379,15 @@ const buildPlayerCardSvg = (
   const leftPad = panelX + 34;
   const topPad = panelY + 34;
 
-  const statY = panelY + 126;
+  const statY = panelY + 132;
   const statGap = 16;
   const statW = (panelW - 72 - statGap * 3) / 4;
-  const statH = 102;
+  const statH = 112;
   const metaW = (panelW - 72 - statGap) / 2;
-  const metaH = 56;
-  const metaBottomPad = 22;
+  const metaH = 60;
   const metaGapY = 12;
-  const metaY2 = panelY + panelH - metaH - metaBottomPad;
-  const metaY1 = metaY2 - metaH - metaGapY;
+  const metaY1 = statY + statH + 18;
+  const metaY2 = metaY1 + metaH + metaGapY;
 
   const safeDisplayName = payload.displayName.length > 18 ? `${payload.displayName.slice(0, 17)}...` : payload.displayName;
 
@@ -417,7 +416,7 @@ const buildPlayerCardSvg = (
       <text x="${x + 24}" y="${y + 34}" fill="#9eb8d1" font-size="16" font-family="Arial, sans-serif" font-weight="600" letter-spacing="2.2">${escapeXml(
         label,
       )}</text>
-      <text x="${x + 24}" y="${y + 78}" fill="#edf7ff" font-size="26" font-family="Arial, sans-serif" font-weight="700">${escapeXml(
+      <text x="${x + 24}" y="${y + 82}" fill="#edf7ff" font-size="26" font-family="Arial, sans-serif" font-weight="700">${escapeXml(
         value,
       )} ETH</text>
     </g>
@@ -427,7 +426,7 @@ const buildPlayerCardSvg = (
   const metaCard = (x, y, text) => `
     <g>
       <rect x="${x}" y="${y}" width="${metaW}" height="${metaH}" rx="20" fill="url(#metaFillGrad)" stroke="rgba(114, 183, 230, 0.23)" stroke-width="2"/>
-      <text x="${x + 22}" y="${y + 37}" fill="#aac4db" font-size="20" font-family="Arial, sans-serif">${escapeXml(text)}</text>
+      <text x="${x + 22}" y="${y + 39}" fill="#aac4db" font-size="20" font-family="Arial, sans-serif">${escapeXml(text)}</text>
     </g>
   `;
 
