@@ -23,6 +23,7 @@ const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".ico": "image/x-icon",
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".gif": "image/gif",
@@ -480,6 +481,17 @@ const app = createServer(async (req, res) => {
     }
 
     if (isGetOrHead && (url.pathname === "/styles.css" || url.pathname === "/app.js")) {
+      await sendFile(res, join(process.cwd(), url.pathname.slice(1)), headOnly);
+      return;
+    }
+
+    if (
+      isGetOrHead &&
+      (url.pathname === "/favicon.ico" ||
+        url.pathname === "/favicon-16x16.png" ||
+        url.pathname === "/favicon-32x32.png" ||
+        url.pathname === "/apple-touch-icon.png")
+    ) {
       await sendFile(res, join(process.cwd(), url.pathname.slice(1)), headOnly);
       return;
     }
