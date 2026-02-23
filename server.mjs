@@ -14,6 +14,9 @@ const ABS_SEARCH_BEARER = process.env.ABS_SEARCH_BEARER || "";
 const ALLOWED_AVATAR_HOST_SUFFIX = ".abs.xyz";
 const CARD_IMAGE_WIDTH = 1600;
 const CARD_IMAGE_HEIGHT = 520;
+const KEY_ICON_ASSET = "assets/bundle_2.png";
+const JACKPOT_ICON_ASSET = "assets/jackpot_big.png";
+let cardIconDataUrlsPromise = null;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -175,7 +178,29 @@ const getNetPalette = (tone) => {
   };
 };
 
-const buildPlayerCardSvg = (payload, avatarDataUrl = "") => {
+const loadCardIconDataUrls = async () => {
+  if (cardIconDataUrlsPromise) return cardIconDataUrlsPromise;
+
+  const toDataUrl = async (assetPath) => {
+    try {
+      const body = await readFile(join(process.cwd(), assetPath));
+      return `data:image/png;base64,${body.toString("base64")}`;
+    } catch {
+      return "";
+    }
+  };
+
+  cardIconDataUrlsPromise = Promise.all([toDataUrl(KEY_ICON_ASSET), toDataUrl(JACKPOT_ICON_ASSET)]).then(
+    ([keyIcon, jackpotIcon]) => ({
+      keyIcon,
+      jackpotIcon,
+    }),
+  );
+
+  return cardIconDataUrlsPromise;
+};
+
+const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", jackpotIcon: "" }) => {
   const width = CARD_IMAGE_WIDTH;
   const height = CARD_IMAGE_HEIGHT;
   const panelX = 18;
@@ -203,9 +228,14 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "") => {
   const netPillX = panelX + panelW - netPillW - 28;
   const netPillY = topPad + 2;
 
-  const statCard = (x, y, label, value) => `
+  const statCard = (x, y, label, value, iconDataUrl = "") => `
     <g>
       <rect x="${x}" y="${y}" width="${statW}" height="${statH}" rx="24" fill="rgba(6, 22, 37, 0.56)" stroke="rgba(114, 183, 230, 0.3)" stroke-width="2"/>
+      ${
+        iconDataUrl
+          ? `<image href="${iconDataUrl}" x="${x + statW - 38}" y="${y + 10}" width="24" height="24" preserveAspectRatio="xMidYMid meet" opacity="0.95"/>`
+          : ""
+      }
       <text x="${x + 24}" y="${y + 34}" fill="#9eb8d1" font-size="16" font-family="Arial, sans-serif" font-weight="600" letter-spacing="2.2">${escapeXml(
         label,
       )}</text>
@@ -272,9 +302,9 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "") => {
     netLabel,
   )}</text>
 
-  ${statCard(panelX + 36, statY, "KEY SPEND", payload.keySpendEth)}
+  ${statCard(panelX + 36, statY, "KEY SPEND", payload.keySpendEth, icons.keyIcon)}
   ${statCard(panelX + 36 + (statW + statGap), statY, "WEEKLY CLAIMS", payload.weeklyClaimsEth)}
-  ${statCard(panelX + 36 + (statW + statGap) * 2, statY, "JACKPOT CLAIMS", payload.jackpotClaimsEth)}
+  ${statCard(panelX + 36 + (statW + statGap) * 2, statY, "JACKPOT CLAIMS", payload.jackpotClaimsEth, icons.jackpotIcon)}
   ${statCard(panelX + 36 + (statW + statGap) * 3, statY, "TOTAL CLAIMS", payload.totalClaimsEth)}
 
   ${metaCard(panelX + 36, metaY1, `Keys bought: ${payload.keysBought}`)}
@@ -513,6 +543,7 @@ const app = createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/player-card-image") {
       const body = await parseRequestBody(req);
       const payload = parseCardPayload(body);
+      const icons = await loadCardIconDataUrls();
 
       let avatarDataUrl = "";
       if (payload.avatarUrl) {
@@ -524,7 +555,7 @@ const app = createServer(async (req, res) => {
         }
       }
 
-      const svg = buildPlayerCardSvg(payload, avatarDataUrl);
+      const svg = buildPlayerCardSvg(payload, avatarDataUrl, icons);
       const resvg = new Resvg(svg, {
         fitTo: {
           mode: "width",

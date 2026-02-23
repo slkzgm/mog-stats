@@ -46,6 +46,8 @@ Current files:
 - `assets/bg-main.png` (main page background)
 - `assets/ghost.gif` (decorative ghost in the panel)
 - `assets/copy.mp3` (copy-as-image sound)
+- `assets/bundle_2.png` (icon on Key spend card)
+- `assets/jackpot_big.png` (icon on Jackpot claims card)
 
 Current CSS variable for background:
 
