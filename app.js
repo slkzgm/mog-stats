@@ -20,6 +20,7 @@ const weeklyEvents = document.querySelector("#weekly-events");
 const jackpotEvents = document.querySelector("#jackpot-events");
 const copyImageBtn = document.querySelector("#copy-image-btn");
 const shareStatus = document.querySelector("#share-status");
+const panelGhost = document.querySelector(".panel-ghost");
 
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const WEI_IN_ETH = 10n ** 18n;
@@ -34,6 +35,8 @@ let currentCardData = null;
 let copyFlashTimer = null;
 let copyButtonResetTimer = null;
 let copySound = null;
+let decorGifOptions = ["/assets/ghost.gif"];
+let selectedDecorGif = "/assets/ghost.gif";
 
 const withSign = (valueWei) => {
   if (valueWei > 0n) return `+${formatEth(valueWei)} ETH`;
@@ -71,6 +74,38 @@ function showError(message) {
 
 function showShareStatus(message) {
   shareStatus.textContent = message;
+}
+
+function pickRandomItem(items) {
+  if (!items.length) return "";
+  if (window.crypto?.getRandomValues) {
+    const buf = new Uint32Array(1);
+    window.crypto.getRandomValues(buf);
+    return items[buf[0] % items.length];
+  }
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+async function loadDecorGifOptions() {
+  try {
+    const response = await fetch("/api/decor-gifs");
+    const payload = await response.json();
+    if (!response.ok) return;
+    const list = (payload.gifs || []).filter((value) => typeof value === "string" && value.startsWith("/assets/"));
+    if (list.length) {
+      decorGifOptions = list;
+    }
+  } catch {
+    // fallback to default list
+  }
+}
+
+function applyRandomDecorGif() {
+  const nextGif = pickRandomItem(decorGifOptions) || "/assets/ghost.gif";
+  selectedDecorGif = nextGif;
+  if (panelGhost) {
+    panelGhost.src = nextGif;
+  }
 }
 
 function getCopySound() {
@@ -368,6 +403,7 @@ function showStats(stats, profile = null) {
     purchaseEvents: keyPurchaseEvents,
     weeklyEvents: weeklyClaimEvents,
     jackpotEvents: jackpotClaimEvents,
+    decorGif: selectedDecorGif,
   };
 }
 
@@ -548,4 +584,10 @@ async function bootstrapFromQueryParam() {
   }
 }
 
-bootstrapFromQueryParam();
+async function initializePage() {
+  await loadDecorGifOptions();
+  applyRandomDecorGif();
+  await bootstrapFromQueryParam();
+}
+
+initializePage();

@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { extname, join } from "node:path";
 import { URL, fileURLToPath } from "node:url";
@@ -18,7 +18,9 @@ const CARD_BG_ASSET = "assets/bg-main.png";
 const KEY_ICON_ASSET = "assets/key_big.png";
 const JACKPOT_ICON_ASSET = "assets/jackpot_big.png";
 const PROJECT_ROOT = fileURLToPath(new URL("./", import.meta.url));
-let cardIconDataUrlsPromise = null;
+const ASSETS_DIR = join(PROJECT_ROOT, "assets");
+let cardRenderAssetsPromise = null;
+let decorGifPathsPromise = null;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -115,6 +117,15 @@ const normalizeIntegerString = (value, fallback = "0") => {
   return clean || fallback;
 };
 
+const normalizeDecorGifPath = (value) => {
+  const raw = toLimitedString(value, 160);
+  if (!raw) return "";
+  if (!raw.startsWith("/assets/")) return "";
+  if (!raw.toLowerCase().endsWith(".gif")) return "";
+  if (raw.includes("..")) return "";
+  return raw;
+};
+
 const parseCardPayload = (body) => {
   const wallet = toLimitedString(body.wallet, 42).toLowerCase();
   if (!WALLET_REGEX.test(wallet)) {
@@ -135,6 +146,7 @@ const parseCardPayload = (body) => {
   const weeklyEvents = normalizeIntegerString(body.weeklyEvents, "0");
   const jackpotEvents = normalizeIntegerString(body.jackpotEvents, "0");
   const avatarUrl = toLimitedString(body.avatarUrl, 600);
+  const decorGif = normalizeDecorGifPath(body.decorGif);
 
   const netNumber = Number(netEth);
   const netTone = Number.isFinite(netNumber) ? (netNumber > 0 ? "positive" : netNumber < 0 ? "negative" : "neutral") : "neutral";
@@ -153,6 +165,7 @@ const parseCardPayload = (body) => {
     weeklyEvents,
     jackpotEvents,
     avatarUrl,
+    decorGif,
     netTone,
   };
 };
@@ -181,32 +194,79 @@ const getNetPalette = (tone) => {
   };
 };
 
-const loadCardIconDataUrls = async () => {
-  if (cardIconDataUrlsPromise) return cardIconDataUrlsPromise;
+const mimeFromAssetPath = (assetPath) => {
+  const ext = extname(assetPath).toLowerCase();
+  if (ext === ".gif") return "image/gif";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  return "image/png";
+};
 
-  const toDataUrl = async (assetPath) => {
-    try {
-      const body = await readFile(join(PROJECT_ROOT, assetPath));
-      return `data:image/png;base64,${body.toString("base64")}`;
-    } catch {
-      return "";
-    }
-  };
+const toAssetDataUrl = async (assetPath) => {
+  try {
+    const body = await readFile(join(PROJECT_ROOT, assetPath));
+    const mime = mimeFromAssetPath(assetPath);
+    return `data:${mime};base64,${body.toString("base64")}`;
+  } catch {
+    return "";
+  }
+};
 
-  cardIconDataUrlsPromise = Promise.all([
-    toDataUrl(KEY_ICON_ASSET),
-    toDataUrl(JACKPOT_ICON_ASSET),
-    toDataUrl(CARD_BG_ASSET),
-  ]).then(([keyIcon, jackpotIcon, bgImage]) => ({
+const listDecorGifs = async () => {
+  if (decorGifPathsPromise) return decorGifPathsPromise;
+
+  decorGifPathsPromise = readdir(ASSETS_DIR)
+    .then((entries) =>
+      entries
+        .filter((entry) => entry.toLowerCase().endsWith(".gif"))
+        .sort((a, b) => a.localeCompare(b))
+        .map((entry) => `/assets/${entry}`),
+    )
+    .catch(() => []);
+
+  return decorGifPathsPromise;
+};
+
+const loadCardRenderAssets = async () => {
+  if (cardRenderAssetsPromise) return cardRenderAssetsPromise;
+
+  cardRenderAssetsPromise = (async () => {
+    const [keyIcon, jackpotIcon, bgImage, decorPaths] = await Promise.all([
+      toAssetDataUrl(KEY_ICON_ASSET),
+      toAssetDataUrl(JACKPOT_ICON_ASSET),
+      toAssetDataUrl(CARD_BG_ASSET),
+      listDecorGifs(),
+    ]);
+
+    const decorEntries = await Promise.all(
+      decorPaths.map(async (publicPath) => {
+        const assetPath = publicPath.startsWith("/") ? publicPath.slice(1) : publicPath;
+        const dataUrl = await toAssetDataUrl(assetPath);
+        return [publicPath, dataUrl];
+      }),
+    );
+
+    const decorByPath = Object.fromEntries(decorEntries.filter(([, value]) => Boolean(value)));
+    const decorFallback = decorByPath["/assets/ghost.gif"] || Object.values(decorByPath)[0] || "";
+
+    return {
       keyIcon,
       jackpotIcon,
       bgImage,
-    }));
+      decorByPath,
+      decorFallback,
+    };
+  })();
 
-  return cardIconDataUrlsPromise;
+  return cardRenderAssetsPromise;
 };
 
-const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", jackpotIcon: "", bgImage: "" }) => {
+const buildPlayerCardSvg = (
+  payload,
+  avatarDataUrl = "",
+  icons = { keyIcon: "", jackpotIcon: "", bgImage: "" },
+  decorDataUrl = "",
+) => {
   const width = CARD_IMAGE_WIDTH;
   const height = CARD_IMAGE_HEIGHT;
   const panelX = 18;
@@ -235,7 +295,7 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
   const netPillY = topPad + 2;
 
   const statCard = (x, y, label, value, iconDataUrl = "", iconType = "") => {
-    const iconW = iconType === "key" ? 46 : 42;
+    const iconW = iconType === "key" ? 40 : 42;
     const iconH = iconW;
     const iconX = x + statW - iconW - 14;
     const iconY = y + (statH - iconH) / 2;
@@ -248,7 +308,7 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
 
     return `
     <g>
-      <rect x="${x}" y="${y}" width="${statW}" height="${statH}" rx="24" fill="rgba(6, 22, 37, 0.56)" stroke="rgba(114, 183, 230, 0.3)" stroke-width="2"/>
+      <rect x="${x}" y="${y}" width="${statW}" height="${statH}" rx="24" fill="url(#statFillGrad)" stroke="rgba(114, 183, 230, 0.3)" stroke-width="2"/>
       ${iconMarkup}
       <text x="${x + 24}" y="${y + 34}" fill="#9eb8d1" font-size="16" font-family="Arial, sans-serif" font-weight="600" letter-spacing="2.2">${escapeXml(
         label,
@@ -262,7 +322,7 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
 
   const metaCard = (x, y, text) => `
     <g>
-      <rect x="${x}" y="${y}" width="${metaW}" height="${metaH}" rx="20" fill="rgba(6, 22, 37, 0.44)" stroke="rgba(114, 183, 230, 0.23)" stroke-width="2"/>
+      <rect x="${x}" y="${y}" width="${metaW}" height="${metaH}" rx="20" fill="url(#metaFillGrad)" stroke="rgba(114, 183, 230, 0.23)" stroke-width="2"/>
       <text x="${x + 22}" y="${y + 37}" fill="#aac4db" font-size="20" font-family="Arial, sans-serif">${escapeXml(text)}</text>
     </g>
   `;
@@ -286,6 +346,10 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
         )}</text>
     `;
 
+  const decorMarkup = decorDataUrl
+    ? `<image href="${decorDataUrl}" x="${panelX + panelW - 154}" y="${panelY + panelH - 154}" width="122" height="122" preserveAspectRatio="xMidYMid meet" opacity="0.22"/>`
+    : "";
+
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
@@ -298,8 +362,22 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
       <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="26"/>
     </clipPath>
     <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(17, 37, 56, 0.46)"/>
-      <stop offset="100%" stop-color="rgba(9, 21, 36, 0.56)"/>
+      <stop offset="0%" stop-color="rgba(17, 37, 56, 0.42)"/>
+      <stop offset="100%" stop-color="rgba(9, 21, 36, 0.52)"/>
+    </linearGradient>
+    <linearGradient id="panelTopLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.0)"/>
+      <stop offset="35%" stop-color="rgba(118, 211, 255, 0.78)"/>
+      <stop offset="65%" stop-color="rgba(57, 246, 202, 0.78)"/>
+      <stop offset="100%" stop-color="rgba(57, 246, 202, 0.0)"/>
+    </linearGradient>
+    <linearGradient id="statFillGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(6, 22, 37, 0.60)"/>
+      <stop offset="100%" stop-color="rgba(5, 18, 31, 0.50)"/>
+    </linearGradient>
+    <linearGradient id="metaFillGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(6, 22, 37, 0.52)"/>
+      <stop offset="100%" stop-color="rgba(5, 18, 31, 0.42)"/>
     </linearGradient>
   </defs>
 
@@ -310,10 +388,12 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
   }
   ${
     icons.bgImage
-      ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" clip-path="url(#panelClip)" opacity="0.82"/>`
+      ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" clip-path="url(#panelClip)" opacity="0.78"/>`
       : ""
   }
   <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="26" fill="url(#panelGrad)" stroke="rgba(130, 188, 230, 0.34)" stroke-width="3"/>
+  <rect x="${panelX + 8}" y="${panelY + 4}" width="${panelW - 16}" height="2" rx="1" fill="url(#panelTopLine)"/>
+  ${decorMarkup}
 
   ${avatarMarkup}
 
@@ -569,6 +649,12 @@ const app = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/decor-gifs") {
+      const gifs = await listDecorGifs();
+      sendJson(res, 200, { gifs });
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/avatar") {
       const sourceUrl = (url.searchParams.get("url") || "").trim();
       if (!sourceUrl) {
@@ -588,7 +674,7 @@ const app = createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/player-card-image") {
       const body = await parseRequestBody(req);
       const payload = parseCardPayload(body);
-      const icons = await loadCardIconDataUrls();
+      const assets = await loadCardRenderAssets();
 
       let avatarDataUrl = "";
       if (payload.avatarUrl) {
@@ -600,7 +686,8 @@ const app = createServer(async (req, res) => {
         }
       }
 
-      const svg = buildPlayerCardSvg(payload, avatarDataUrl, icons);
+      const decorDataUrl = assets.decorByPath[payload.decorGif] || assets.decorFallback;
+      const svg = buildPlayerCardSvg(payload, avatarDataUrl, assets, decorDataUrl);
       const resvg = new Resvg(svg, {
         fitTo: {
           mode: "width",

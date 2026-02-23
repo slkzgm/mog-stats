@@ -45,6 +45,7 @@ Current files:
 
 - `assets/bg-main.png` (main page background)
 - `assets/ghost.gif` (decorative ghost in the panel)
+- `assets/*.gif` (all GIFs are auto-detected; one is picked randomly on each refresh and used in copy image)
 - `assets/copy.mp3` (copy-as-image sound)
 - `assets/key_big.png` (icon on Key spend card)
 - `assets/jackpot_big.png` (icon on Jackpot claims card)
