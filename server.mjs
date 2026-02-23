@@ -289,36 +289,30 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
-    <linearGradient id="bgBaseGrad" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="bgFallbackGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0a1727"/>
       <stop offset="52%" stop-color="#123049"/>
       <stop offset="100%" stop-color="#0d2f3f"/>
     </linearGradient>
-    <linearGradient id="bgTintGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(9, 19, 31, 0.78)"/>
-      <stop offset="48%" stop-color="rgba(17, 39, 59, 0.74)"/>
-      <stop offset="100%" stop-color="rgba(15, 47, 60, 0.76)"/>
-    </linearGradient>
-    <radialGradient id="bgGlowLeft" cx="0.02" cy="0.04" r="0.9">
-      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.12)"/>
-      <stop offset="72%" stop-color="rgba(118, 211, 255, 0)"/>
-    </radialGradient>
-    <radialGradient id="bgGlowRight" cx="0.98" cy="0.08" r="0.84">
-      <stop offset="0%" stop-color="rgba(57, 246, 202, 0.09)"/>
-      <stop offset="74%" stop-color="rgba(57, 246, 202, 0)"/>
-    </radialGradient>
+    <clipPath id="panelClip">
+      <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="26"/>
+    </clipPath>
     <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.08)"/>
-      <stop offset="34%" stop-color="rgba(9, 21, 36, 0.94)"/>
-      <stop offset="100%" stop-color="rgba(9, 21, 36, 0.86)"/>
+      <stop offset="0%" stop-color="rgba(17, 37, 56, 0.46)"/>
+      <stop offset="100%" stop-color="rgba(9, 21, 36, 0.56)"/>
     </linearGradient>
   </defs>
 
-  <rect width="${width}" height="${height}" fill="url(#bgBaseGrad)"/>
-  ${icons.bgImage ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" opacity="0.58"/>` : ""}
-  <rect width="${width}" height="${height}" fill="url(#bgTintGrad)"/>
-  <rect width="${width}" height="${height}" fill="url(#bgGlowLeft)"/>
-  <rect width="${width}" height="${height}" fill="url(#bgGlowRight)"/>
+  ${
+    icons.bgImage
+      ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`
+      : `<rect width="${width}" height="${height}" fill="url(#bgFallbackGrad)"/>`
+  }
+  ${
+    icons.bgImage
+      ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" clip-path="url(#panelClip)" opacity="0.82"/>`
+      : ""
+  }
   <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="26" fill="url(#panelGrad)" stroke="rgba(130, 188, 230, 0.34)" stroke-width="3"/>
 
   ${avatarMarkup}
