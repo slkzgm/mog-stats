@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/player-card-image.js": {
+      "memory": 1024,
+      "maxDuration": 15
+    },
+    "api/*.js": {
+      "maxDuration": 10
+    }
+  }
+}

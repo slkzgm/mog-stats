@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MOG Wallet Stats</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel">
+        <h1>MOG Wallet Stats</h1>
+        <p class="subtitle">Key purchases, weekly claims, jackpot claims, and net ETH per wallet.</p>
+
+        <form id="wallet-form" class="wallet-form">
+          <label for="wallet-input">Wallet address</label>
+          <div class="input-row">
+            <input
+              id="wallet-input"
+              name="wallet"
+              type="text"
+              placeholder="0x..."
+              autocomplete="off"
+              spellcheck="false"
+              required
+            />
+            <button type="submit">Search</button>
+          </div>
+          <div id="suggestions" class="suggestions hidden" role="listbox" aria-label="Profile suggestions"></div>
+        </form>
+
+        <p id="status" class="status" aria-live="polite"></p>
+
+        <article id="stats-card" class="card hidden">
+          <div id="capture-content">
+            <header class="card-head">
+              <div class="identity">
+                <img id="profile-avatar" class="avatar hidden" alt="Profile avatar" />
+                <div>
+                  <h2 id="wallet-title"></h2>
+                  <p id="wallet-subtitle" class="wallet-subtitle"></p>
+                </div>
+              </div>
+              <span id="net-pill" class="pill">Net 0 ETH</span>
+            </header>
+
+            <div class="grid">
+              <div class="stat">
+                <span>Key spend</span>
+                <strong id="keys-eth">-</strong>
+              </div>
+              <div class="stat">
+                <span>Weekly claims</span>
+                <strong id="weekly-eth">-</strong>
+              </div>
+              <div class="stat">
+                <span>Jackpot claims</span>
+                <strong id="jackpot-eth">-</strong>
+              </div>
+              <div class="stat">
+                <span>Total claims</span>
+                <strong id="total-eth">-</strong>
+              </div>
+            </div>
+
+            <div class="meta-grid">
+              <span id="keys-count">Keys bought: -</span>
+              <span id="keys-events">Purchase events: -</span>
+              <span id="weekly-events">Weekly events: -</span>
+              <span id="jackpot-events">Jackpot events: -</span>
+            </div>
+          </div>
+
+          <section class="share-tools" aria-label="Card tools">
+            <button id="copy-image-btn" type="button" class="secondary-btn">Copy as Image</button>
+            <p id="share-status" class="share-status" aria-live="polite"></p>
+          </section>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
