@@ -14,6 +14,7 @@ const ABS_SEARCH_BEARER = process.env.ABS_SEARCH_BEARER || "";
 const ALLOWED_AVATAR_HOST_SUFFIX = ".abs.xyz";
 const CARD_IMAGE_WIDTH = 1600;
 const CARD_IMAGE_HEIGHT = 520;
+const CARD_BG_ASSET = "assets/bg-main.png";
 const KEY_ICON_ASSET = "assets/key_big.png";
 const JACKPOT_ICON_ASSET = "assets/jackpot_big.png";
 let cardIconDataUrlsPromise = null;
@@ -191,17 +192,20 @@ const loadCardIconDataUrls = async () => {
     }
   };
 
-  cardIconDataUrlsPromise = Promise.all([toDataUrl(KEY_ICON_ASSET), toDataUrl(JACKPOT_ICON_ASSET)]).then(
-    ([keyIcon, jackpotIcon]) => ({
+  cardIconDataUrlsPromise = Promise.all([
+    toDataUrl(KEY_ICON_ASSET),
+    toDataUrl(JACKPOT_ICON_ASSET),
+    toDataUrl(CARD_BG_ASSET),
+  ]).then(([keyIcon, jackpotIcon, bgImage]) => ({
       keyIcon,
       jackpotIcon,
-    }),
-  );
+      bgImage,
+    }));
 
   return cardIconDataUrlsPromise;
 };
 
-const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", jackpotIcon: "" }) => {
+const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", jackpotIcon: "", bgImage: "" }) => {
   const width = CARD_IMAGE_WIDTH;
   const height = CARD_IMAGE_HEIGHT;
   const panelX = 18;
@@ -284,18 +288,35 @@ const buildPlayerCardSvg = (payload, avatarDataUrl = "", icons = { keyIcon: "", 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
-    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="bgBaseGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0a1727"/>
       <stop offset="52%" stop-color="#123049"/>
       <stop offset="100%" stop-color="#0d2f3f"/>
     </linearGradient>
+    <linearGradient id="bgTintGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(9, 19, 31, 0.92)"/>
+      <stop offset="48%" stop-color="rgba(17, 39, 59, 0.88)"/>
+      <stop offset="100%" stop-color="rgba(15, 47, 60, 0.9)"/>
+    </linearGradient>
+    <radialGradient id="bgGlowLeft" cx="0.02" cy="0.04" r="0.9">
+      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.2)"/>
+      <stop offset="72%" stop-color="rgba(118, 211, 255, 0)"/>
+    </radialGradient>
+    <radialGradient id="bgGlowRight" cx="0.98" cy="0.08" r="0.84">
+      <stop offset="0%" stop-color="rgba(57, 246, 202, 0.14)"/>
+      <stop offset="74%" stop-color="rgba(57, 246, 202, 0)"/>
+    </radialGradient>
     <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="rgba(118, 211, 255, 0.12)"/>
       <stop offset="100%" stop-color="rgba(11, 29, 48, 0.9)"/>
     </linearGradient>
   </defs>
 
-  <rect width="${width}" height="${height}" fill="url(#bgGrad)"/>
+  <rect width="${width}" height="${height}" fill="url(#bgBaseGrad)"/>
+  ${icons.bgImage ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" opacity="0.82"/>` : ""}
+  <rect width="${width}" height="${height}" fill="url(#bgTintGrad)"/>
+  <rect width="${width}" height="${height}" fill="url(#bgGlowLeft)"/>
+  <rect width="${width}" height="${height}" fill="url(#bgGlowRight)"/>
   <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="26" fill="url(#panelGrad)" stroke="rgba(130, 188, 230, 0.34)" stroke-width="3"/>
 
   ${avatarMarkup}
