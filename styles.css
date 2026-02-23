@@ -129,7 +129,7 @@ h1 {
   gap: 10px;
 }
 
-input {
+.input-row input[type="text"] {
   flex: 1;
   min-width: 0;
   border: 1px solid var(--border);
@@ -141,13 +141,34 @@ input {
   background: rgba(0, 0, 0, 0.2);
 }
 
-input::placeholder {
+.input-row input[type="text"]::placeholder {
   color: rgba(170, 194, 216, 0.75);
 }
 
-input:focus {
+.input-row input[type="text"]:focus {
   outline: 2px solid rgba(118, 211, 255, 0.36);
   outline-offset: 2px;
+}
+
+.projection-toggle {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  user-select: none;
+}
+
+.projection-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #76d3ff;
+  cursor: pointer;
 }
 
 button {
@@ -404,6 +425,13 @@ button:active {
   font-size: 0.85rem;
   color: var(--muted);
   background: rgba(0, 0, 0, 0.14);
+}
+
+.projected-week-note {
+  margin: 10px 0 2px;
+  color: #8cc4e4;
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
 }
 
 .share-tools {

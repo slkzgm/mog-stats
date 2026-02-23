@@ -29,6 +29,9 @@ pnpm dev:vercel
    - `GRAPHQL_ENDPOINT`
    - `HASURA_ADMIN_SECRET` (optional, only if your GraphQL endpoint requires it)
    - `ABS_SEARCH_BEARER` (optional)
+   - `ABS_RPC_ENDPOINT` (optional, default: `https://api.mainnet.abs.xyz`)
+   - `MOG_WEEKLY_POOL_SHARE_BPS` (optional, default: `6000`)
+   - `MOG_WEEKLY_POOL_CACHE_MS` (optional, default: `45000`)
 4. Deploy.
 
 `vercel.json` is already configured for Node runtime and function limits.
@@ -38,6 +41,9 @@ pnpm dev:vercel
 - `GRAPHQL_ENDPOINT` (default local fallback: `http://127.0.0.1:8080/v1/graphql`)
 - `HASURA_ADMIN_SECRET` (optional)
 - `ABS_SEARCH_BEARER` (optional)
+- `ABS_RPC_ENDPOINT` (optional, default: `https://api.mainnet.abs.xyz`)
+- `MOG_WEEKLY_POOL_SHARE_BPS` (optional, default `6000` = 60% of key spend to weekly pool)
+- `MOG_WEEKLY_POOL_CACHE_MS` (optional, projected pool cache TTL in ms)
 
 ## Assets: Background / Ghost / Copy Sound
 

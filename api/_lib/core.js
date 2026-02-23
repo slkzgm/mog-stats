@@ -9,6 +9,12 @@ const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://127.0.0.1:8080/
 const HASURA_ADMIN_SECRET = process.env.HASURA_ADMIN_SECRET || "";
 const ABS_SEARCH_ENDPOINT = "https://backend.portal.abs.xyz/api/search/global";
 const ABS_SEARCH_BEARER = process.env.ABS_SEARCH_BEARER || "";
+const MOG_RUNS_ENDPOINT = "https://mog.onchainheroes.xyz/api/runs";
+const ABS_RPC_ENDPOINT = process.env.ABS_RPC_ENDPOINT || "https://api.mainnet.abs.xyz";
+const KEY_PURCHASE_CONTRACT_ADDRESS = "0xBDE2483b242C266a97E39826b2B5B3c06FC02916";
+const KEY_PURCHASE_TOPIC0 = "0x404d1f54ee326d5c061a2c9116c429c3dd776456700e045b563d2f68bea27089";
+const DEFAULT_WEEKLY_SHARE_BPS = 6000;
+const DEFAULT_WEEKLY_POOL_CACHE_MS = 45_000;
 const ALLOWED_AVATAR_HOST_SUFFIX = ".abs.xyz";
 const CARD_IMAGE_WIDTH = 1600;
 const CARD_IMAGE_HEIGHT = 460;
@@ -27,6 +33,8 @@ const CARD_FONT_FILES = [
 ];
 let cardRenderAssetsPromise = null;
 let decorGifPathsPromise = null;
+const rpcBlockTimestampCache = new Map();
+const weeklyPoolEstimateCache = new Map();
 
 const PLAYER_STATS_QUERY = `
 query WalletOverview($wallet: String!) {
@@ -171,6 +179,202 @@ export const fetchPlayerStats = async (wallet) => {
   }
 
   return body.data?.PlayerStats?.[0] || null;
+};
+
+const parseEnvInt = (value, fallback) => {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const WEEKLY_POOL_SHARE_BPS = Math.max(0, Math.min(10_000, parseEnvInt(process.env.MOG_WEEKLY_POOL_SHARE_BPS, DEFAULT_WEEKLY_SHARE_BPS)));
+const WEEKLY_POOL_CACHE_MS = Math.max(5_000, parseEnvInt(process.env.MOG_WEEKLY_POOL_CACHE_MS, DEFAULT_WEEKLY_POOL_CACHE_MS));
+
+const parseHexInt = (value, fallback = 0) => {
+  if (typeof value !== "string" || !value.startsWith("0x")) return fallback;
+  const parsed = Number.parseInt(value, 16);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const parseNonNegativeInt = (value, fallback = 0) => {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return parsed;
+};
+
+const fetchRunsWeeklyStats = async (wallet) => {
+  const url = `${MOG_RUNS_ENDPOINT}?mode=weekly&sortBy=treasure&address=${wallet}`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+      Referer: "https://mog.onchainheroes.xyz/",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`MOG runs HTTP ${response.status}`);
+  }
+
+  const body = await response.json();
+  const weekStart = typeof body?.weekStart === "string" ? body.weekStart : "";
+  const weekEnd = typeof body?.weekEnd === "string" ? body.weekEnd : "";
+
+  const weekStartMs = Date.parse(weekStart);
+  const weekEndMs = Date.parse(weekEnd);
+  if (!Number.isFinite(weekStartMs) || !Number.isFinite(weekEndMs)) {
+    throw new Error("Invalid current week boundaries from MOG runs API");
+  }
+
+  return {
+    weekNumber: parseNonNegativeInt(body?.weekNumber, 0),
+    weekStart,
+    weekEnd,
+    weekStartSec: Math.floor(weekStartMs / 1000),
+    weekEndSec: Math.floor(weekEndMs / 1000),
+    userTreasure: parseNonNegativeInt(body?.userStats?.treasure, 0),
+    totalGlobalTreasure: parseNonNegativeInt(body?.totalGlobalTreasure, 0),
+  };
+};
+
+const absRpc = async (method, params) => {
+  const response = await fetch(ABS_RPC_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`ABS RPC HTTP ${response.status}: ${text}`);
+  }
+
+  const body = await response.json();
+  if (body.error) {
+    const message = body.error.message || "ABS RPC error";
+    throw new Error(message);
+  }
+
+  return body.result;
+};
+
+const getLatestBlockNumber = async () => parseHexInt(await absRpc("eth_blockNumber", []), 0);
+
+const getBlockTimestampSec = async (blockNumber) => {
+  const cached = rpcBlockTimestampCache.get(blockNumber);
+  if (cached !== undefined) return cached;
+
+  const blockTag = `0x${blockNumber.toString(16)}`;
+  const block = await absRpc("eth_getBlockByNumber", [blockTag, false]);
+  const timestampSec = parseHexInt(block?.timestamp, 0);
+  rpcBlockTimestampCache.set(blockNumber, timestampSec);
+  return timestampSec;
+};
+
+const findFirstBlockAtOrAfterTimestamp = async (targetTimestampSec) => {
+  let low = 0;
+  let high = await getLatestBlockNumber();
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    const ts = await getBlockTimestampSec(mid);
+    if (ts < targetTimestampSec) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+};
+
+const parseTotalPaidFromLog = (log) => {
+  const raw = typeof log?.data === "string" ? log.data : "0x";
+  const clean = raw.startsWith("0x") ? raw.slice(2) : raw;
+  if (!clean) return 0n;
+  const totalPaidHex = clean.slice(-64).padStart(64, "0");
+  return BigInt(`0x${totalPaidHex}`);
+};
+
+const fetchKeysPurchasedLogs = async (fromBlock, toBlock) =>
+  absRpc("eth_getLogs", [
+    {
+      fromBlock: `0x${fromBlock.toString(16)}`,
+      toBlock: `0x${toBlock.toString(16)}`,
+      address: KEY_PURCHASE_CONTRACT_ADDRESS,
+      topics: [KEY_PURCHASE_TOPIC0],
+    },
+  ]);
+
+const sumKeysPurchasedTotalPaid = async (fromBlock, toBlock) => {
+  if (fromBlock > toBlock) return 0n;
+
+  try {
+    const logs = await fetchKeysPurchasedLogs(fromBlock, toBlock);
+    return logs.reduce((sum, log) => sum + parseTotalPaidFromLog(log), 0n);
+  } catch (error) {
+    if (fromBlock === toBlock) {
+      throw error;
+    }
+
+    const mid = Math.floor((fromBlock + toBlock) / 2);
+    const [left, right] = await Promise.all([
+      sumKeysPurchasedTotalPaid(fromBlock, mid),
+      sumKeysPurchasedTotalPaid(mid + 1, toBlock),
+    ]);
+    return left + right;
+  }
+};
+
+const estimateWeeklyPoolWei = async (runsWeekly) => {
+  const cacheKey = `${runsWeekly.weekNumber}:${runsWeekly.weekStart}`;
+  const cached = weeklyPoolEstimateCache.get(cacheKey);
+  if (cached && Date.now() - cached.updatedAtMs < WEEKLY_POOL_CACHE_MS) {
+    return cached;
+  }
+
+  const latestBlock = await getLatestBlockNumber();
+  const startBlock = cached?.startBlock ?? (await findFirstBlockAtOrAfterTimestamp(runsWeekly.weekStartSec));
+  const totalPaidWei = await sumKeysPurchasedTotalPaid(startBlock, latestBlock);
+  const weeklyPoolWei = (totalPaidWei * BigInt(WEEKLY_POOL_SHARE_BPS)) / 10_000n;
+
+  const nextCache = {
+    updatedAtMs: Date.now(),
+    startBlock,
+    latestBlock,
+    totalPaidWei,
+    weeklyPoolWei,
+  };
+  weeklyPoolEstimateCache.set(cacheKey, nextCache);
+  return nextCache;
+};
+
+export const fetchCurrentWeekProjectedPayout = async (wallet) => {
+  const runsWeekly = await fetchRunsWeeklyStats(wallet);
+  const poolEstimate = await estimateWeeklyPoolWei(runsWeekly);
+
+  const userTreasure = BigInt(runsWeekly.userTreasure);
+  const totalGlobalTreasure = BigInt(runsWeekly.totalGlobalTreasure);
+  const projectedPayoutWei =
+    totalGlobalTreasure > 0n ? (poolEstimate.weeklyPoolWei * userTreasure) / totalGlobalTreasure : 0n;
+
+  return {
+    weekNumber: runsWeekly.weekNumber,
+    weekStart: runsWeekly.weekStart,
+    weekEnd: runsWeekly.weekEnd,
+    userTreasure: String(runsWeekly.userTreasure),
+    totalGlobalTreasure: String(runsWeekly.totalGlobalTreasure),
+    weeklyPoolWei: poolEstimate.weeklyPoolWei.toString(),
+    projectedPayoutWei: projectedPayoutWei.toString(),
+    source: "onchain-estimate",
+  };
 };
 
 export const searchAbstractProfiles = async (query) => {

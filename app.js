@@ -21,6 +21,8 @@ const jackpotEvents = document.querySelector("#jackpot-events");
 const copyImageBtn = document.querySelector("#copy-image-btn");
 const shareStatus = document.querySelector("#share-status");
 const panelGhost = document.querySelector(".panel-ghost");
+const includeCurrentWeekCheckbox = document.querySelector("#include-current-week");
+const projectedWeekNote = document.querySelector("#projected-week-note");
 
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const WEI_IN_ETH = 10n ** 18n;
@@ -38,6 +40,7 @@ let copyButtonResetTimer = null;
 let copySound = null;
 let decorGifOptions = [];
 let selectedDecorGif = "";
+let includeCurrentWeekProjected = false;
 
 const withSign = (valueWei) => {
   if (valueWei > 0n) return `+${formatEth(valueWei)} ETH`;
@@ -70,6 +73,8 @@ function showError(message) {
   statusEl.textContent = message;
   card.classList.add("hidden");
   currentCardData = null;
+  projectedWeekNote.textContent = "";
+  projectedWeekNote.classList.add("hidden");
   showShareStatus("");
 }
 
@@ -385,19 +390,22 @@ async function copyCardAsImage() {
   return "download";
 }
 
-function showStats(stats, profile = null) {
+function showStats(stats, profile = null, currentWeekProjected = null, includeProjection = false, projectionError = "") {
   const keyPurchaseAmount = BigInt(stats.keyPurchaseAmount);
   const weeklyClaimAmount = BigInt(stats.weeklyClaimAmount);
   const jackpotClaimAmount = BigInt(stats.jackpotClaimAmount);
+  const projectedWeekPayoutWei =
+    includeProjection && currentWeekProjected?.projectedPayoutWei ? BigInt(currentWeekProjected.projectedPayoutWei) : 0n;
 
-  const totalClaims = weeklyClaimAmount + jackpotClaimAmount;
+  const weeklyClaimAmountWithProjection = weeklyClaimAmount + projectedWeekPayoutWei;
+  const totalClaims = weeklyClaimAmountWithProjection + jackpotClaimAmount;
   const net = totalClaims - keyPurchaseAmount;
   currentWallet = stats.wallet;
 
   setProfileIdentity(stats.wallet, profile);
 
   const keyPurchaseEth = formatEth(keyPurchaseAmount);
-  const weeklyClaimEth = formatEth(weeklyClaimAmount);
+  const weeklyClaimEth = formatEth(weeklyClaimAmountWithProjection);
   const jackpotClaimEth = formatEth(jackpotClaimAmount);
   const totalClaimsEth = formatEth(totalClaims);
   const netText = withSign(net);
@@ -429,6 +437,20 @@ function showStats(stats, profile = null) {
   weeklyEvents.textContent = `Weekly events: ${weeklyClaimEvents}`;
   jackpotEvents.textContent = `Jackpot events: ${jackpotClaimEvents}`;
 
+  if (includeProjection) {
+    const weekNumber = currentWeekProjected?.weekNumber ?? "?";
+    const projectedEth = formatEth(projectedWeekPayoutWei);
+    if (projectionError && !currentWeekProjected) {
+      projectedWeekNote.textContent = "Projected current week payout is unavailable right now.";
+    } else {
+      projectedWeekNote.textContent = `Projected current week payout (Week ${weekNumber}): +${projectedEth} ETH`;
+    }
+    projectedWeekNote.classList.remove("hidden");
+  } else {
+    projectedWeekNote.textContent = "";
+    projectedWeekNote.classList.add("hidden");
+  }
+
   statusEl.textContent = "";
   card.classList.remove("hidden");
   setWalletInUrl(stats.wallet);
@@ -451,7 +473,8 @@ function showStats(stats, profile = null) {
   };
 }
 
-async function loadWalletStats(wallet, profile = null) {
+async function loadWalletStats(wallet, profile = null, options = {}) {
+  const includeProjection = Boolean(options.includeCurrentWeekProjected ?? includeCurrentWeekProjected);
   statusEl.textContent = "Loading...";
   card.classList.add("hidden");
   currentCardData = null;
@@ -461,7 +484,7 @@ async function loadWalletStats(wallet, profile = null) {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ wallet }),
+    body: JSON.stringify({ wallet, includeCurrentWeekProjected: includeProjection }),
   });
 
   const payload = await response.json();
@@ -484,7 +507,13 @@ async function loadWalletStats(wallet, profile = null) {
     selectedProfile = effectiveProfile;
   }
 
-  showStats(payload.stats, effectiveProfile);
+  showStats(
+    payload.stats,
+    effectiveProfile,
+    payload.currentWeekProjected || null,
+    includeProjection,
+    payload.currentWeekProjectedError || "",
+  );
 }
 
 suggestionsEl.addEventListener("click", async (event) => {
@@ -613,6 +642,19 @@ copyImageBtn.addEventListener("click", async () => {
   }
 });
 
+includeCurrentWeekCheckbox.addEventListener("change", async () => {
+  includeCurrentWeekProjected = includeCurrentWeekCheckbox.checked;
+
+  if (!currentWallet || card.classList.contains("hidden")) return;
+
+  try {
+    const profile = selectedProfile && selectedProfile.address === currentWallet ? selectedProfile : null;
+    await loadWalletStats(currentWallet, profile, { includeCurrentWeekProjected });
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "Unexpected error");
+  }
+});
+
 async function bootstrapFromQueryParam() {
   const url = new URL(window.location.href);
   const wallet = (url.searchParams.get("wallet") || "").trim().toLowerCase();
@@ -629,6 +671,7 @@ async function bootstrapFromQueryParam() {
 }
 
 async function initializePage() {
+  includeCurrentWeekProjected = Boolean(includeCurrentWeekCheckbox.checked);
   await loadDecorGifOptions();
   applyRandomDecorGif();
   await bootstrapFromQueryParam();
