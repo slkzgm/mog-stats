@@ -75,6 +75,39 @@ query WalletOverview($wallet: String!) {
 }
 `;
 
+const GLOBAL_STATS_AND_LEADERBOARD_QUERY = `
+query GlobalStatsAndLeaderboard($limit: Int!) {
+  GlobalStats(where: { id: { _eq: "global" } }) {
+    totalUniquePlayers
+    keyPurchaseEvents
+    keysPurchased
+    keyPurchaseAmount
+    weeklyClaimEvents
+    weeklyClaimAmount
+    jackpotClaimEvents
+    jackpotClaimAmount
+    totalClaimAmount
+    netProfitAmount
+    updatedAtTimestamp
+  }
+  PlayerStats(
+    order_by: [{ netProfitAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    limit: $limit
+  ) {
+    wallet
+    keysPurchased
+    keyPurchaseEvents
+    keyPurchaseAmount
+    weeklyClaimEvents
+    weeklyClaimAmount
+    jackpotClaimEvents
+    jackpotClaimAmount
+    totalClaimAmount
+    netProfitAmount
+  }
+}
+`;
+
 const sendJson = (res, statusCode, payload) => {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
@@ -457,7 +490,7 @@ const normalizeSearchUsers = (users) =>
       verification: user.verification || null,
     }));
 
-const fetchPlayerStats = async (wallet) => {
+const fetchGraphql = async (query, variables = {}) => {
   const headers = {
     "Content-Type": "application/json",
   };
@@ -469,8 +502,8 @@ const fetchPlayerStats = async (wallet) => {
     method: "POST",
     headers,
     body: JSON.stringify({
-      query: PLAYER_STATS_QUERY,
-      variables: { wallet },
+      query,
+      variables,
     }),
   });
 
@@ -484,7 +517,30 @@ const fetchPlayerStats = async (wallet) => {
     throw new Error(json.errors[0].message || "GraphQL error");
   }
 
-  return json.data?.PlayerStats?.[0] || null;
+  return json;
+};
+
+const fetchPlayerStats = async (wallet) => {
+  const body = await fetchGraphql(PLAYER_STATS_QUERY, { wallet });
+  return body.data?.PlayerStats?.[0] || null;
+};
+
+const fetchGlobalStats = async (limit = 100) => {
+  const cappedLimit = Math.max(1, Math.min(200, Number.parseInt(String(limit), 10) || 100));
+  let body;
+  try {
+    body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY, { limit: cappedLimit });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "GraphQL error";
+    if (message.includes("netProfitAmount") || message.includes("totalClaimAmount")) {
+      throw new Error("Indexer schema is outdated. Deploy the latest mog-indexer and reindex to enable global profit stats.");
+    }
+    throw error;
+  }
+  return {
+    global: body.data?.GlobalStats?.[0] || null,
+    leaderboard: body.data?.PlayerStats || [],
+  };
 };
 
 const parseEnvInt = (value, fallback) => {
@@ -853,6 +909,18 @@ const app = createServer(async (req, res) => {
       }
 
       sendJson(res, 200, { stats, currentWeekProjected, currentWeekProjectedError });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/global-stats") {
+      const requestedLimit = url.searchParams.get("limit") || "100";
+      const limit = Number.parseInt(requestedLimit, 10);
+      const payload = await fetchGlobalStats(limit);
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "public, max-age=20, stale-while-revalidate=40",
+      });
+      res.end(JSON.stringify(payload));
       return;
     }
 

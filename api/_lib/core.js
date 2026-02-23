@@ -54,6 +54,39 @@ query WalletOverview($wallet: String!) {
 }
 `;
 
+const GLOBAL_STATS_AND_LEADERBOARD_QUERY = `
+query GlobalStatsAndLeaderboard($limit: Int!) {
+  GlobalStats(where: { id: { _eq: "global" } }) {
+    totalUniquePlayers
+    keyPurchaseEvents
+    keysPurchased
+    keyPurchaseAmount
+    weeklyClaimEvents
+    weeklyClaimAmount
+    jackpotClaimEvents
+    jackpotClaimAmount
+    totalClaimAmount
+    netProfitAmount
+    updatedAtTimestamp
+  }
+  PlayerStats(
+    order_by: [{ netProfitAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    limit: $limit
+  ) {
+    wallet
+    keysPurchased
+    keyPurchaseEvents
+    keyPurchaseAmount
+    weeklyClaimEvents
+    weeklyClaimAmount
+    jackpotClaimEvents
+    jackpotClaimAmount
+    totalClaimAmount
+    netProfitAmount
+  }
+}
+`;
+
 export const json = (res, statusCode, payload, cache = "no-store") => {
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -152,6 +185,30 @@ const normalizeSearchUsers = (users) =>
     }));
 
 export const fetchPlayerStats = async (wallet) => {
+  const body = await fetchGraphql(PLAYER_STATS_QUERY, { wallet });
+  return body.data?.PlayerStats?.[0] || null;
+};
+
+export const fetchGlobalStats = async (limit = 100) => {
+  const cappedLimit = Math.max(1, Math.min(200, Number.parseInt(String(limit), 10) || 100));
+  let body;
+  try {
+    body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY, { limit: cappedLimit });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "GraphQL error";
+    if (message.includes("netProfitAmount") || message.includes("totalClaimAmount")) {
+      throw new Error("Indexer schema is outdated. Deploy the latest mog-indexer and reindex to enable global profit stats.");
+    }
+    throw error;
+  }
+
+  return {
+    global: body.data?.GlobalStats?.[0] || null,
+    leaderboard: body.data?.PlayerStats || [],
+  };
+};
+
+const fetchGraphql = async (query, variables = {}) => {
   const headers = {
     "Content-Type": "application/json",
   };
@@ -163,8 +220,8 @@ export const fetchPlayerStats = async (wallet) => {
     method: "POST",
     headers,
     body: JSON.stringify({
-      query: PLAYER_STATS_QUERY,
-      variables: { wallet },
+      query,
+      variables,
     }),
   });
 
@@ -178,7 +235,7 @@ export const fetchPlayerStats = async (wallet) => {
     throw new Error(body.errors[0].message || "GraphQL error");
   }
 
-  return body.data?.PlayerStats?.[0] || null;
+  return body;
 };
 
 const parseEnvInt = (value, fallback) => {

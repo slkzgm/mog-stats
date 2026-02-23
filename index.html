@@ -23,77 +23,146 @@
         <p class="subtitle">Key purchases, weekly claims, jackpot claims, and net ETH per wallet.</p>
         <img class="panel-ghost hidden" alt="" aria-hidden="true" />
 
-        <form id="wallet-form" class="wallet-form">
-          <label for="wallet-input">Abstract username (or wallet address)</label>
-          <div class="input-row">
-            <input
-              id="wallet-input"
-              name="wallet"
-              type="text"
-              placeholder="username or 0x..."
-              autocomplete="off"
-              spellcheck="false"
-              required
-            />
-            <button type="submit">Search</button>
-          </div>
-          <div id="suggestions" class="suggestions hidden" role="listbox" aria-label="Profile suggestions"></div>
-          <label class="projection-toggle" for="include-current-week">
-            <input id="include-current-week" type="checkbox" />
-            Include current week projected payout (estimate)
-          </label>
-        </form>
+        <nav class="view-switch" aria-label="View selector">
+          <button id="view-wallet-btn" type="button" class="view-btn is-active">Wallet</button>
+          <button id="view-global-btn" type="button" class="view-btn">General stats</button>
+        </nav>
 
-        <p id="status" class="status" aria-live="polite"></p>
+        <section id="wallet-view" class="view-pane">
+          <form id="wallet-form" class="wallet-form">
+            <label for="wallet-input">Abstract username (or wallet address)</label>
+            <div class="input-row">
+              <input
+                id="wallet-input"
+                name="wallet"
+                type="text"
+                placeholder="username or 0x..."
+                autocomplete="off"
+                spellcheck="false"
+                required
+              />
+              <button type="submit">Search</button>
+            </div>
+            <div id="suggestions" class="suggestions hidden" role="listbox" aria-label="Profile suggestions"></div>
+            <label class="projection-toggle" for="include-current-week">
+              <input id="include-current-week" type="checkbox" />
+              Include current week projected payout (estimate)
+            </label>
+          </form>
 
-        <article id="stats-card" class="card hidden">
-          <div id="capture-content">
-            <header class="card-head">
-              <div class="identity">
-                <img id="profile-avatar" class="avatar hidden" alt="Profile avatar" />
-                <div>
-                  <h2 id="wallet-title"></h2>
-                  <p id="wallet-subtitle" class="wallet-subtitle"></p>
+          <p id="status" class="status" aria-live="polite"></p>
+
+          <article id="stats-card" class="card hidden">
+            <div id="capture-content">
+              <header class="card-head">
+                <div class="identity">
+                  <img id="profile-avatar" class="avatar hidden" alt="Profile avatar" />
+                  <div>
+                    <h2 id="wallet-title"></h2>
+                    <p id="wallet-subtitle" class="wallet-subtitle"></p>
+                  </div>
+                </div>
+                <span id="net-pill" class="pill">Net 0 ETH</span>
+              </header>
+
+              <div class="grid">
+                <div class="stat stat-key stat-with-icon">
+                  <img class="stat-badge stat-badge-key" src="/assets/key_big.png" alt="" aria-hidden="true" />
+                  <span>Key spend</span>
+                  <strong id="keys-eth">-</strong>
+                </div>
+                <div class="stat">
+                  <span>Weekly claims</span>
+                  <strong id="weekly-eth">-</strong>
+                </div>
+                <div class="stat stat-jackpot stat-with-icon">
+                  <img class="stat-badge stat-badge-jackpot" src="/assets/jackpot_big.png" alt="" aria-hidden="true" />
+                  <span>Jackpot claims</span>
+                  <strong id="jackpot-eth">-</strong>
+                </div>
+                <div class="stat">
+                  <span>Total claims</span>
+                  <strong id="total-eth">-</strong>
                 </div>
               </div>
-              <span id="net-pill" class="pill">Net 0 ETH</span>
-            </header>
 
-            <div class="grid">
-              <div class="stat stat-key stat-with-icon">
-                <img class="stat-badge stat-badge-key" src="/assets/key_big.png" alt="" aria-hidden="true" />
-                <span>Key spend</span>
-                <strong id="keys-eth">-</strong>
+              <div class="meta-grid">
+                <span id="keys-count">Keys bought: -</span>
+                <span id="keys-events">Purchase events: -</span>
+                <span id="weekly-events">Weekly events: -</span>
+                <span id="jackpot-events">Jackpot events: -</span>
+              </div>
+              <p id="projected-week-note" class="projected-week-note hidden"></p>
+            </div>
+
+            <section class="share-tools" aria-label="Card tools">
+              <button id="copy-image-btn" type="button" class="secondary-btn">Copy as Image</button>
+              <p id="share-status" class="share-status" aria-live="polite"></p>
+            </section>
+          </article>
+        </section>
+
+        <section id="global-view" class="view-pane hidden">
+          <p id="global-status" class="status" aria-live="polite"></p>
+          <article id="global-card" class="card hidden global-card">
+            <h2 class="global-title">Global overview</h2>
+            <div class="global-metrics">
+              <div class="stat">
+                <span>Unique players</span>
+                <strong id="g-players">-</strong>
               </div>
               <div class="stat">
-                <span>Weekly claims</span>
-                <strong id="weekly-eth">-</strong>
+                <span>Keys bought</span>
+                <strong id="g-keys">-</strong>
               </div>
-              <div class="stat stat-jackpot stat-with-icon">
-                <img class="stat-badge stat-badge-jackpot" src="/assets/jackpot_big.png" alt="" aria-hidden="true" />
-                <span>Jackpot claims</span>
-                <strong id="jackpot-eth">-</strong>
+              <div class="stat">
+                <span>Key spend</span>
+                <strong id="g-key-spend">-</strong>
               </div>
               <div class="stat">
                 <span>Total claims</span>
-                <strong id="total-eth">-</strong>
+                <strong id="g-total-claims">-</strong>
+              </div>
+              <div class="stat">
+                <span>Weekly claims</span>
+                <strong id="g-weekly-claims">-</strong>
+              </div>
+              <div class="stat">
+                <span>Jackpot claims</span>
+                <strong id="g-jackpot-claims">-</strong>
+              </div>
+              <div class="stat">
+                <span>Net profit</span>
+                <strong id="g-net" class="global-net">-</strong>
+              </div>
+              <div class="stat">
+                <span>Total claim events</span>
+                <strong id="g-claim-events">-</strong>
               </div>
             </div>
 
-            <div class="meta-grid">
-              <span id="keys-count">Keys bought: -</span>
-              <span id="keys-events">Purchase events: -</span>
-              <span id="weekly-events">Weekly events: -</span>
-              <span id="jackpot-events">Jackpot events: -</span>
-            </div>
-            <p id="projected-week-note" class="projected-week-note hidden"></p>
-          </div>
-
-          <section class="share-tools" aria-label="Card tools">
-            <button id="copy-image-btn" type="button" class="secondary-btn">Copy as Image</button>
-            <p id="share-status" class="share-status" aria-live="polite"></p>
-          </section>
-        </article>
+            <section class="leaderboard-wrap" aria-label="Profit leaderboard">
+              <div class="leaderboard-head">
+                <h3>Profit leaderboard</h3>
+                <span id="leaderboard-count" class="leaderboard-count">-</span>
+              </div>
+              <div class="leaderboard-scroll">
+                <table class="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Wallet</th>
+                      <th>Net</th>
+                      <th>Claims</th>
+                      <th>Spend</th>
+                    </tr>
+                  </thead>
+                  <tbody id="leaderboard-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </article>
+        </section>
 
         <section class="play-cta-wrap" aria-label="Play MOG">
           <a

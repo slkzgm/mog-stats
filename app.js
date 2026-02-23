@@ -3,6 +3,10 @@ const walletInput = document.querySelector("#wallet-input");
 const statusEl = document.querySelector("#status");
 const card = document.querySelector("#stats-card");
 const suggestionsEl = document.querySelector("#suggestions");
+const walletView = document.querySelector("#wallet-view");
+const globalView = document.querySelector("#global-view");
+const walletViewBtn = document.querySelector("#view-wallet-btn");
+const globalViewBtn = document.querySelector("#view-global-btn");
 
 const walletTitle = document.querySelector("#wallet-title");
 const walletSubtitle = document.querySelector("#wallet-subtitle");
@@ -23,12 +27,25 @@ const shareStatus = document.querySelector("#share-status");
 const panelGhost = document.querySelector(".panel-ghost");
 const includeCurrentWeekCheckbox = document.querySelector("#include-current-week");
 const projectedWeekNote = document.querySelector("#projected-week-note");
+const globalStatus = document.querySelector("#global-status");
+const globalCard = document.querySelector("#global-card");
+const globalPlayers = document.querySelector("#g-players");
+const globalKeys = document.querySelector("#g-keys");
+const globalKeySpend = document.querySelector("#g-key-spend");
+const globalTotalClaims = document.querySelector("#g-total-claims");
+const globalWeeklyClaims = document.querySelector("#g-weekly-claims");
+const globalJackpotClaims = document.querySelector("#g-jackpot-claims");
+const globalNet = document.querySelector("#g-net");
+const globalClaimEvents = document.querySelector("#g-claim-events");
+const leaderboardCount = document.querySelector("#leaderboard-count");
+const leaderboardBody = document.querySelector("#leaderboard-body");
 
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const WEI_IN_ETH = 10n ** 18n;
 const SEARCH_DEBOUNCE_MS = 180;
 const COPY_SOUND_URL = "/assets/copy.mp3";
 const DECOR_GHOST_FALLBACK = "/assets/ghost.gif";
+const DEFAULT_GLOBAL_LEADERBOARD_LIMIT = 100;
 
 let selectedProfile = null;
 let lastSearchToken = 0;
@@ -41,6 +58,8 @@ let copySound = null;
 let decorGifOptions = [];
 let selectedDecorGif = "";
 let includeCurrentWeekProjected = false;
+let currentView = "wallet";
+let globalLoaded = false;
 
 const withSign = (valueWei) => {
   if (valueWei > 0n) return `+${formatEth(valueWei)} ETH`;
@@ -69,6 +88,53 @@ function formatEth(valueWei, decimals = 4) {
   return `${negative ? "-" : ""}${pretty}`;
 }
 
+function formatInt(value) {
+  try {
+    return BigInt(String(value ?? "0")).toLocaleString("en-US");
+  } catch {
+    return "0";
+  }
+}
+
+function parseWei(value) {
+  try {
+    return BigInt(String(value ?? "0"));
+  } catch {
+    return 0n;
+  }
+}
+
+function setCurrentView(view, options = {}) {
+  const next = view === "global" ? "global" : "wallet";
+  currentView = next;
+  const isGlobal = next === "global";
+
+  walletView.classList.toggle("hidden", isGlobal);
+  globalView.classList.toggle("hidden", !isGlobal);
+  walletViewBtn.classList.toggle("is-active", !isGlobal);
+  globalViewBtn.classList.toggle("is-active", isGlobal);
+  if (isGlobal) {
+    statusEl.textContent = "";
+    clearSuggestions();
+  } else {
+    globalStatus.textContent = "";
+  }
+
+  const shouldSyncUrl = options.syncUrl !== false;
+  if (shouldSyncUrl) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", next);
+    if (next !== "wallet") {
+      url.searchParams.delete("wallet");
+    } else if (WALLET_REGEX.test(currentWallet)) {
+      url.searchParams.set("wallet", currentWallet);
+    } else {
+      url.searchParams.delete("wallet");
+    }
+    window.history.replaceState({}, "", url.toString());
+  }
+}
+
 function showError(message) {
   statusEl.textContent = message;
   card.classList.add("hidden");
@@ -80,6 +146,92 @@ function showError(message) {
 
 function showShareStatus(message) {
   shareStatus.textContent = message;
+}
+
+function showGlobalError(message) {
+  globalStatus.textContent = message;
+  globalCard.classList.add("hidden");
+}
+
+function renderLeaderboardRows(rows) {
+  if (!rows.length) {
+    leaderboardBody.innerHTML = `<tr><td colspan="5">No player rows available yet.</td></tr>`;
+    leaderboardCount.textContent = "0 rows";
+    return;
+  }
+
+  leaderboardBody.innerHTML = rows
+    .map((row, index) => {
+      const wallet = (row.wallet || "").toLowerCase();
+      const net = parseWei(row.netProfitAmount);
+      const totalClaims = parseWei(row.totalClaimAmount);
+      const keySpend = parseWei(row.keyPurchaseAmount);
+      const walletLabel = WALLET_REGEX.test(wallet) ? shortAddress(wallet) : wallet;
+
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>
+            <button class="leaderboard-wallet-btn" type="button" data-wallet="${wallet}">
+              ${walletLabel}
+            </button>
+          </td>
+          <td>${withSign(net)}</td>
+          <td>${formatEth(totalClaims)} ETH</td>
+          <td>${formatEth(keySpend)} ETH</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  leaderboardCount.textContent = `${rows.length} rows`;
+}
+
+function renderGlobalStats(payload) {
+  const global = payload?.global;
+  if (!global) {
+    showGlobalError("Global stats are not available yet.");
+    return;
+  }
+
+  const keySpendWei = parseWei(global.keyPurchaseAmount);
+  const totalClaimsWei = parseWei(global.totalClaimAmount);
+  const weeklyClaimsWei = parseWei(global.weeklyClaimAmount);
+  const jackpotClaimsWei = parseWei(global.jackpotClaimAmount);
+  const netWei = parseWei(global.netProfitAmount);
+
+  globalPlayers.textContent = formatInt(global.totalUniquePlayers);
+  globalKeys.textContent = formatInt(global.keysPurchased);
+  globalKeySpend.textContent = `${formatEth(keySpendWei)} ETH`;
+  globalTotalClaims.textContent = `${formatEth(totalClaimsWei)} ETH`;
+  globalWeeklyClaims.textContent = `${formatEth(weeklyClaimsWei)} ETH`;
+  globalJackpotClaims.textContent = `${formatEth(jackpotClaimsWei)} ETH`;
+  globalClaimEvents.textContent = formatInt(parseWei(global.weeklyClaimEvents) + parseWei(global.jackpotClaimEvents));
+  globalNet.textContent = `${withSign(netWei)}`;
+  globalNet.classList.remove("positive", "negative");
+  if (netWei > 0n) globalNet.classList.add("positive");
+  if (netWei < 0n) globalNet.classList.add("negative");
+
+  renderLeaderboardRows(payload.leaderboard || []);
+  globalStatus.textContent = "";
+  globalCard.classList.remove("hidden");
+}
+
+async function loadGlobalStats(force = false) {
+  if (globalLoaded && !force) return;
+
+  globalStatus.textContent = "Loading global stats...";
+  globalCard.classList.add("hidden");
+  const response = await fetch(`/api/global-stats?limit=${DEFAULT_GLOBAL_LEADERBOARD_LIMIT}`);
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload.error || "Global stats API error");
+  }
+
+  const hasGlobal = Boolean(payload?.global);
+  renderGlobalStats(payload);
+  globalLoaded = hasGlobal;
 }
 
 function pickRandomItem(items) {
@@ -328,7 +480,7 @@ async function resolveProfileForWallet(wallet) {
 
 function setWalletInUrl(wallet) {
   const url = new URL(window.location.href);
-  url.search = "";
+  url.searchParams.set("view", "wallet");
   url.searchParams.set("wallet", wallet);
   window.history.replaceState({}, "", url.toString());
 }
@@ -516,6 +668,11 @@ async function loadWalletStats(wallet, profile = null, options = {}) {
   );
 }
 
+async function openWalletView(wallet, profile = null, options = {}) {
+  setCurrentView("wallet");
+  await loadWalletStats(wallet, profile, options);
+}
+
 suggestionsEl.addEventListener("click", async (event) => {
   const button = event.target.closest(".suggestion-item");
   if (!button) return;
@@ -531,7 +688,7 @@ suggestionsEl.addEventListener("click", async (event) => {
   clearSuggestions();
 
   try {
-    await loadWalletStats(profile.address, profile);
+    await openWalletView(profile.address, profile);
   } catch (error) {
     showError(error instanceof Error ? error.message : "Unexpected error");
   }
@@ -614,7 +771,7 @@ form.addEventListener("submit", async (event) => {
     if (profile?.name) {
       selectedProfile = profile;
     }
-    await loadWalletStats(wallet, profile);
+    await openWalletView(wallet, profile);
     walletInput.value = wallet;
     clearSuggestions();
   } catch (error) {
@@ -649,7 +806,37 @@ includeCurrentWeekCheckbox.addEventListener("change", async () => {
 
   try {
     const profile = selectedProfile && selectedProfile.address === currentWallet ? selectedProfile : null;
-    await loadWalletStats(currentWallet, profile, { includeCurrentWeekProjected });
+    await openWalletView(currentWallet, profile, { includeCurrentWeekProjected });
+  } catch (error) {
+    showError(error instanceof Error ? error.message : "Unexpected error");
+  }
+});
+
+walletViewBtn.addEventListener("click", () => {
+  setCurrentView("wallet");
+});
+
+globalViewBtn.addEventListener("click", async () => {
+  setCurrentView("global");
+  try {
+    await loadGlobalStats(true);
+  } catch (error) {
+    showGlobalError(error instanceof Error ? error.message : "Global stats unavailable");
+  }
+});
+
+leaderboardBody.addEventListener("click", async (event) => {
+  const walletButton = event.target.closest(".leaderboard-wallet-btn");
+  if (!walletButton) return;
+
+  const wallet = (walletButton.dataset.wallet || "").toLowerCase();
+  if (!WALLET_REGEX.test(wallet)) return;
+
+  walletInput.value = wallet;
+  clearSuggestions();
+
+  try {
+    await openWalletView(wallet);
   } catch (error) {
     showError(error instanceof Error ? error.message : "Unexpected error");
   }
@@ -657,6 +844,18 @@ includeCurrentWeekCheckbox.addEventListener("change", async () => {
 
 async function bootstrapFromQueryParam() {
   const url = new URL(window.location.href);
+  const view = (url.searchParams.get("view") || "wallet").trim().toLowerCase();
+  if (view === "global") {
+    setCurrentView("global", { syncUrl: false });
+    try {
+      await loadGlobalStats();
+    } catch (error) {
+      showGlobalError(error instanceof Error ? error.message : "Global stats unavailable");
+    }
+    return;
+  }
+
+  setCurrentView("wallet", { syncUrl: false });
   const wallet = (url.searchParams.get("wallet") || "").trim().toLowerCase();
   if (!WALLET_REGEX.test(wallet)) {
     return;
@@ -664,7 +863,7 @@ async function bootstrapFromQueryParam() {
 
   walletInput.value = wallet;
   try {
-    await loadWalletStats(wallet, null);
+    await openWalletView(wallet, null);
   } catch (error) {
     showError(error instanceof Error ? error.message : "Unexpected error");
   }

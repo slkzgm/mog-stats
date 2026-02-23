@@ -5,6 +5,7 @@ One-page wallet stats app for MOG on Abstract.
 - Frontend is static (`index.html`, `app.js`, `styles.css`)
 - Backend runs as Vercel Serverless Functions (`/api/*`)
 - `Copy as Image` uses server-rendered PNG for stable output
+- Includes a `General stats` view with global aggregates + profit leaderboard (non-projected, onchain indexed fields)
 
 ## Run Locally
 
@@ -44,6 +45,15 @@ pnpm dev:vercel
 - `ABS_RPC_ENDPOINT` (optional, default: `https://api.mainnet.abs.xyz`)
 - `MOG_WEEKLY_POOL_SHARE_BPS` (optional, default `6000` = 60% of key spend to weekly pool)
 - `MOG_WEEKLY_POOL_CACHE_MS` (optional, projected pool cache TTL in ms)
+
+## GraphQL Schema Requirement
+
+The `General stats` page expects these indexed fields on `GlobalStats` and `PlayerStats`:
+
+- `totalClaimAmount`
+- `netProfitAmount`
+
+If your deployed indexer does not expose these fields yet, deploy/reindex the latest `mog-indexer` schema + handlers first.
 
 ## Assets: Background / Ghost / Copy Sound
 
