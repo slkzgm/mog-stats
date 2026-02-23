@@ -27,7 +27,7 @@ pnpm dev:vercel
 2. Import the repo in Vercel.
 3. Set environment variables in Vercel Project Settings:
    - `GRAPHQL_ENDPOINT`
-   - `HASURA_ADMIN_SECRET`
+   - `HASURA_ADMIN_SECRET` (optional, only if your GraphQL endpoint requires it)
    - `ABS_SEARCH_BEARER` (optional)
 4. Deploy.
 
@@ -36,7 +36,7 @@ pnpm dev:vercel
 ## Environment Variables
 
 - `GRAPHQL_ENDPOINT` (default local fallback: `http://127.0.0.1:8080/v1/graphql`)
-- `HASURA_ADMIN_SECRET` (default local fallback: `testing`)
+- `HASURA_ADMIN_SECRET` (optional)
 - `ABS_SEARCH_BEARER` (optional)
 
 ## Background Image: Where to Rename / Replace

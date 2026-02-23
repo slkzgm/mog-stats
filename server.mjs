@@ -8,7 +8,7 @@ import { Resvg } from "@resvg/resvg-js";
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 4173);
 const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT || "http://127.0.0.1:8080/v1/graphql";
-const HASURA_ADMIN_SECRET = process.env.HASURA_ADMIN_SECRET || "testing";
+const HASURA_ADMIN_SECRET = process.env.HASURA_ADMIN_SECRET || "";
 const ABS_SEARCH_ENDPOINT = "https://backend.portal.abs.xyz/api/search/global";
 const ABS_SEARCH_BEARER = process.env.ABS_SEARCH_BEARER || "";
 const ALLOWED_AVATAR_HOST_SUFFIX = ".abs.xyz";
@@ -288,12 +288,16 @@ const normalizeSearchUsers = (users) =>
     }));
 
 const fetchPlayerStats = async (wallet) => {
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  if (HASURA_ADMIN_SECRET) {
+    headers["x-hasura-admin-secret"] = HASURA_ADMIN_SECRET;
+  }
+
   const response = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-hasura-admin-secret": HASURA_ADMIN_SECRET,
-    },
+    headers,
     body: JSON.stringify({
       query: PLAYER_STATS_QUERY,
       variables: { wallet },
