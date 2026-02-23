@@ -26,6 +26,7 @@ const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const WEI_IN_ETH = 10n ** 18n;
 const SEARCH_DEBOUNCE_MS = 180;
 const COPY_SOUND_URL = "/assets/copy.mp3";
+const DECOR_GHOST_FALLBACK = "/assets/ghost.gif";
 
 let selectedProfile = null;
 let lastSearchToken = 0;
@@ -35,8 +36,8 @@ let currentCardData = null;
 let copyFlashTimer = null;
 let copyButtonResetTimer = null;
 let copySound = null;
-let decorGifOptions = ["/assets/ghost.gif"];
-let selectedDecorGif = "/assets/ghost.gif";
+let decorGifOptions = [];
+let selectedDecorGif = "";
 
 const withSign = (valueWei) => {
   if (valueWei > 0n) return `+${formatEth(valueWei)} ETH`;
@@ -87,24 +88,67 @@ function pickRandomItem(items) {
 }
 
 async function loadDecorGifOptions() {
+  let list = [];
   try {
     const response = await fetch("/api/decor-gifs");
     const payload = await response.json();
-    if (!response.ok) return;
-    const list = (payload.gifs || []).filter((value) => typeof value === "string" && value.startsWith("/assets/"));
-    if (list.length) {
-      decorGifOptions = list;
+    if (response.ok) {
+      list = (payload.gifs || []).filter(
+        (value) =>
+          typeof value === "string" &&
+          value.startsWith("/assets/") &&
+          value.toLowerCase().endsWith(".gif") &&
+          !value.includes(".."),
+      );
     }
   } catch {
-    // fallback to default list
+    // fallback handled below
   }
+
+  const deduped = [...new Set(list)];
+  if (!deduped.includes(DECOR_GHOST_FALLBACK)) {
+    deduped.push(DECOR_GHOST_FALLBACK);
+  }
+  decorGifOptions = deduped;
 }
 
 function applyRandomDecorGif() {
-  const nextGif = pickRandomItem(decorGifOptions) || "/assets/ghost.gif";
+  const nextGif = pickRandomItem(decorGifOptions) || DECOR_GHOST_FALLBACK;
   selectedDecorGif = nextGif;
-  if (panelGhost) {
-    panelGhost.src = nextGif;
+  if (!panelGhost) {
+    return;
+  }
+
+  panelGhost.classList.add("hidden");
+  panelGhost.src = nextGif;
+
+  const cleanup = () => {
+    panelGhost.removeEventListener("load", reveal);
+    panelGhost.removeEventListener("error", fail);
+  };
+
+  const reveal = () => {
+    cleanup();
+    panelGhost.classList.remove("hidden");
+  };
+
+  const fail = () => {
+    cleanup();
+    if (selectedDecorGif !== DECOR_GHOST_FALLBACK) {
+      selectedDecorGif = DECOR_GHOST_FALLBACK;
+      panelGhost.src = DECOR_GHOST_FALLBACK;
+      panelGhost.addEventListener("load", reveal, { once: true });
+      panelGhost.addEventListener("error", reveal, { once: true });
+      return;
+    }
+    panelGhost.classList.remove("hidden");
+  };
+
+  panelGhost.addEventListener("load", reveal, { once: true });
+  panelGhost.addEventListener("error", fail, { once: true });
+
+  if (panelGhost.complete && panelGhost.naturalWidth > 0) {
+    reveal();
   }
 }
 
@@ -403,7 +447,7 @@ function showStats(stats, profile = null) {
     purchaseEvents: keyPurchaseEvents,
     weeklyEvents: weeklyClaimEvents,
     jackpotEvents: jackpotClaimEvents,
-    decorGif: selectedDecorGif,
+    decorGif: selectedDecorGif || DECOR_GHOST_FALLBACK,
   };
 }
 
