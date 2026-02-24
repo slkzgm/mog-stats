@@ -5,7 +5,7 @@ One-page wallet stats app for MOG on Abstract.
 - Frontend is static (`index.html`, `app.js`, `styles.css`)
 - Backend runs as Vercel Serverless Functions (`/api/*`)
 - `Copy as Image` uses server-rendered PNG for stable output
-- Includes a `General stats` view with global aggregates + profit leaderboard (non-projected, onchain indexed fields)
+- Includes a `General stats` view with global aggregates + profit leaderboard (realized onchain fields) and an optional projected-current-week toggle
 
 ## Run Locally
 
@@ -54,6 +54,12 @@ The `General stats` page expects these indexed fields on `GlobalStats` and `Play
 - `netProfitAmount`
 
 If your deployed indexer does not expose these fields yet, deploy/reindex the latest `mog-indexer` schema + handlers first.
+
+Optional global projection details:
+
+- The global toggle `Include current week projected payout (estimate)` does **not** require indexer changes.
+- It calls `/api/global-stats?includeCurrentWeekProjected=1` and estimates current week pool from onchain key-purchase logs + `MOG_WEEKLY_POOL_SHARE_BPS`.
+- This path is opt-in and cached (`MOG_WEEKLY_POOL_CACHE_MS`), so default global view performance is unchanged.
 
 ## Assets: Background / Ghost / Copy Sound
 

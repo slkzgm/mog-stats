@@ -515,6 +515,11 @@ button:not(.view-btn):not(.leaderboard-wallet-btn):active {
   letter-spacing: 0.01em;
 }
 
+.global-projection-toggle {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
 .global-metrics {
   display: grid;
   gap: 10px;

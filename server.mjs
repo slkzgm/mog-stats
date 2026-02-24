@@ -598,8 +598,9 @@ const fetchPlayerStats = async (wallet) => {
   }
 };
 
-const fetchGlobalStats = async (limit = 100) => {
+const fetchGlobalStats = async (limit = 100, options = {}) => {
   const cappedLimit = Math.max(1, Math.min(200, Number.parseInt(String(limit), 10) || 100));
+  const includeCurrentWeekProjected = Boolean(options?.includeCurrentWeekProjected);
   let body;
   try {
     body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY, { limit: cappedLimit });
@@ -617,10 +618,26 @@ const fetchGlobalStats = async (limit = 100) => {
       throw error;
     }
   }
-  return {
+  const payload = {
     global: body.data?.GlobalStats?.[0] || null,
     leaderboard: body.data?.PlayerStats || [],
   };
+
+  if (includeCurrentWeekProjected && payload.global) {
+    try {
+      payload.currentWeekGlobalProjection = await fetchCurrentWeekGlobalProjection();
+      payload.currentWeekGlobalProjectionError = null;
+    } catch (error) {
+      payload.currentWeekGlobalProjection = null;
+      payload.currentWeekGlobalProjectionError =
+        error instanceof Error ? error.message : "Projected global payout unavailable";
+    }
+  } else {
+    payload.currentWeekGlobalProjection = null;
+    payload.currentWeekGlobalProjectionError = null;
+  }
+
+  return payload;
 };
 
 const parseEnvInt = (value, fallback) => {
@@ -643,8 +660,16 @@ const parseNonNegativeInt = (value, fallback = 0) => {
   return parsed;
 };
 
-const fetchRunsWeeklyStats = async (wallet) => {
-  const url = `${MOG_RUNS_ENDPOINT}?mode=weekly&sortBy=treasure&address=${wallet}`;
+const fetchRunsWeeklyStats = async (wallet = "") => {
+  const params = new URLSearchParams({
+    mode: "weekly",
+    sortBy: "treasure",
+  });
+  if (WALLET_REGEX.test(wallet)) {
+    params.set("address", wallet);
+  }
+
+  const url = `${MOG_RUNS_ENDPOINT}?${params.toString()}`;
   const response = await fetch(url, {
     headers: {
       Accept: "application/json",
@@ -814,6 +839,20 @@ const fetchCurrentWeekProjectedPayout = async (wallet) => {
     totalGlobalTreasure: String(runsWeekly.totalGlobalTreasure),
     weeklyPoolWei: poolEstimate.weeklyPoolWei.toString(),
     projectedPayoutWei: projectedPayoutWei.toString(),
+    source: "onchain-estimate",
+  };
+};
+
+const fetchCurrentWeekGlobalProjection = async () => {
+  const runsWeekly = await fetchRunsWeeklyStats();
+  const poolEstimate = await estimateWeeklyPoolWei(runsWeekly);
+
+  return {
+    weekNumber: runsWeekly.weekNumber,
+    weekStart: runsWeekly.weekStart,
+    weekEnd: runsWeekly.weekEnd,
+    totalGlobalTreasure: String(runsWeekly.totalGlobalTreasure),
+    weeklyPoolWei: poolEstimate.weeklyPoolWei.toString(),
     source: "onchain-estimate",
   };
 };
@@ -997,7 +1036,9 @@ const app = createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/global-stats") {
       const requestedLimit = url.searchParams.get("limit") || "100";
       const limit = Number.parseInt(requestedLimit, 10);
-      const payload = await fetchGlobalStats(limit);
+      const includeProjectedRaw = (url.searchParams.get("includeCurrentWeekProjected") || "").trim().toLowerCase();
+      const includeCurrentWeekProjected = includeProjectedRaw === "1" || includeProjectedRaw === "true";
+      const payload = await fetchGlobalStats(limit, { includeCurrentWeekProjected });
       res.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "public, max-age=20, stale-while-revalidate=40",

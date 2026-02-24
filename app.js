@@ -27,6 +27,8 @@ const shareStatus = document.querySelector("#share-status");
 const panelGhost = document.querySelector(".panel-ghost");
 const includeCurrentWeekCheckbox = document.querySelector("#include-current-week");
 const projectedWeekNote = document.querySelector("#projected-week-note");
+const includeCurrentWeekGlobalCheckbox = document.querySelector("#include-current-week-global");
+const globalProjectedWeekNote = document.querySelector("#global-projected-week-note");
 const globalStatus = document.querySelector("#global-status");
 const globalCard = document.querySelector("#global-card");
 const globalPlayers = document.querySelector("#g-players");
@@ -58,8 +60,10 @@ let copySound = null;
 let decorGifOptions = [];
 let selectedDecorGif = "";
 let includeCurrentWeekProjected = false;
+let includeGlobalCurrentWeekProjected = false;
 let currentView = "wallet";
 let globalLoaded = false;
+let globalLoadedProjectionMode = false;
 
 const withSign = (valueWei) => {
   if (valueWei > 0n) return `+${formatEth(valueWei)} ETH`;
@@ -227,18 +231,38 @@ function renderGlobalStats(payload) {
   const weeklyClaimsWei = parseWei(global.weeklyClaimAmount);
   const jackpotClaimsWei = parseWei(global.jackpotClaimAmount);
   const netWei = parseWei(global.netProfitAmount);
+  const projectedGlobalPoolWei =
+    includeGlobalCurrentWeekProjected && payload?.currentWeekGlobalProjection?.weeklyPoolWei
+      ? parseWei(payload.currentWeekGlobalProjection.weeklyPoolWei)
+      : 0n;
+  const weeklyClaimsWithProjectionWei = weeklyClaimsWei + projectedGlobalPoolWei;
+  const totalClaimsWithProjectionWei = totalClaimsWei + projectedGlobalPoolWei;
+  const netWithProjectionWei = netWei + projectedGlobalPoolWei;
 
   globalPlayers.textContent = formatInt(global.totalUniquePlayers);
   globalKeys.textContent = formatInt(global.keysPurchased);
   globalKeySpend.textContent = `${formatEth(keySpendWei)} ETH`;
-  globalTotalClaims.textContent = `${formatEth(totalClaimsWei)} ETH`;
-  globalWeeklyClaims.textContent = `${formatEth(weeklyClaimsWei)} ETH`;
+  globalTotalClaims.textContent = `${formatEth(totalClaimsWithProjectionWei)} ETH`;
+  globalWeeklyClaims.textContent = `${formatEth(weeklyClaimsWithProjectionWei)} ETH`;
   globalJackpotClaims.textContent = `${formatEth(jackpotClaimsWei)} ETH`;
   globalClaimEvents.textContent = formatInt(parseWei(global.weeklyClaimEvents) + parseWei(global.jackpotClaimEvents));
-  globalNet.textContent = `${withSign(netWei)}`;
+  globalNet.textContent = `${withSign(netWithProjectionWei)}`;
   globalNet.classList.remove("positive", "negative");
-  if (netWei > 0n) globalNet.classList.add("positive");
-  if (netWei < 0n) globalNet.classList.add("negative");
+  if (netWithProjectionWei > 0n) globalNet.classList.add("positive");
+  if (netWithProjectionWei < 0n) globalNet.classList.add("negative");
+
+  if (includeGlobalCurrentWeekProjected) {
+    const weekNumber = payload?.currentWeekGlobalProjection?.weekNumber ?? "?";
+    if (payload?.currentWeekGlobalProjectionError && !payload?.currentWeekGlobalProjection) {
+      globalProjectedWeekNote.textContent = "Projected current week global payout is unavailable right now.";
+    } else {
+      globalProjectedWeekNote.textContent = `Projected current week global payout (Week ${weekNumber}): +${formatEth(projectedGlobalPoolWei)} ETH`;
+    }
+    globalProjectedWeekNote.classList.remove("hidden");
+  } else {
+    globalProjectedWeekNote.textContent = "";
+    globalProjectedWeekNote.classList.add("hidden");
+  }
 
   renderLeaderboardRows(payload.leaderboard || []);
   globalStatus.textContent = "";
@@ -246,11 +270,12 @@ function renderGlobalStats(payload) {
 }
 
 async function loadGlobalStats(force = false) {
-  if (globalLoaded && !force) return;
+  if (globalLoaded && globalLoadedProjectionMode === includeGlobalCurrentWeekProjected && !force) return;
 
   globalStatus.textContent = "Loading global stats...";
   globalCard.classList.add("hidden");
-  const response = await fetch(`/api/global-stats?limit=${DEFAULT_GLOBAL_LEADERBOARD_LIMIT}`);
+  const includeProjected = includeGlobalCurrentWeekProjected ? "&includeCurrentWeekProjected=1" : "";
+  const response = await fetch(`/api/global-stats?limit=${DEFAULT_GLOBAL_LEADERBOARD_LIMIT}${includeProjected}`);
   const payload = await response.json();
 
   if (!response.ok) {
@@ -260,6 +285,7 @@ async function loadGlobalStats(force = false) {
   const hasGlobal = Boolean(payload?.global);
   renderGlobalStats(payload);
   globalLoaded = hasGlobal;
+  globalLoadedProjectionMode = includeGlobalCurrentWeekProjected;
 }
 
 function pickRandomItem(items) {
@@ -857,6 +883,17 @@ includeCurrentWeekCheckbox.addEventListener("change", async () => {
   }
 });
 
+includeCurrentWeekGlobalCheckbox.addEventListener("change", async () => {
+  includeGlobalCurrentWeekProjected = includeCurrentWeekGlobalCheckbox.checked;
+  if (currentView !== "global") return;
+
+  try {
+    await loadGlobalStats(true);
+  } catch (error) {
+    showGlobalError(error instanceof Error ? error.message : "Global stats unavailable");
+  }
+});
+
 walletViewBtn.addEventListener("click", () => {
   setCurrentView("wallet");
 });
@@ -916,6 +953,7 @@ async function bootstrapFromQueryParam() {
 
 async function initializePage() {
   includeCurrentWeekProjected = Boolean(includeCurrentWeekCheckbox.checked);
+  includeGlobalCurrentWeekProjected = Boolean(includeCurrentWeekGlobalCheckbox.checked);
   await loadDecorGifOptions();
   applyRandomDecorGif();
   await bootstrapFromQueryParam();
