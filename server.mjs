@@ -17,7 +17,8 @@ const KEY_PURCHASE_CONTRACT_ADDRESS = "0xBDE2483b242C266a97E39826b2B5B3c06FC0291
 const KEY_PURCHASE_TOPIC0 = "0x404d1f54ee326d5c061a2c9116c429c3dd776456700e045b563d2f68bea27089";
 const DEFAULT_WEEKLY_SHARE_BPS = 6000;
 const DEFAULT_WEEKLY_POOL_CACHE_MS = 45_000;
-const ALLOWED_AVATAR_HOST_SUFFIX = ".abs.xyz";
+const ALLOWED_AVATAR_EXACT_HOSTS = new Set(["abs.xyz", "cdn.simplehash.com"]);
+const ALLOWED_AVATAR_HOST_SUFFIXES = [".abs.xyz", ".seadn.io", ".simplehash.com"];
 const CARD_IMAGE_WIDTH = 1600;
 const CARD_IMAGE_HEIGHT = 460;
 const CARD_BG_ASSET = "assets/bg-main.png";
@@ -98,6 +99,42 @@ query WalletOverview($wallet: String!) {
 `;
 
 const GLOBAL_STATS_AND_LEADERBOARD_QUERY = `
+query GlobalStatsAndLeaderboard($limit: Int!) {
+  GlobalStats(where: { id: { _eq: "global" } }) {
+    totalUniquePlayers
+    keyPurchaseEvents
+    keysPurchased
+    keyPurchaseAmount
+    weeklyClaimEvents
+    weeklyClaimAmount
+    jackpotClaimEvents
+    jackpotClaimAmount
+    totalClaimAmount
+    netProfitAmount
+    updatedAtTimestamp
+  }
+  PlayerStats(
+    order_by: [{ netProfitAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    limit: $limit
+  ) {
+    wallet
+    profileName
+    profileImageUrl
+    profileVerification
+    keysPurchased
+    keyPurchaseEvents
+    keyPurchaseAmount
+    weeklyClaimEvents
+    weeklyClaimAmount
+    jackpotClaimEvents
+    jackpotClaimAmount
+    totalClaimAmount
+    netProfitAmount
+  }
+}
+`;
+
+const GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY = `
 query GlobalStatsAndLeaderboard($limit: Int!) {
   GlobalStats(where: { id: { _eq: "global" } }) {
     totalUniquePlayers
@@ -568,10 +605,17 @@ const fetchGlobalStats = async (limit = 100) => {
     body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY, { limit: cappedLimit });
   } catch (error) {
     const message = error instanceof Error ? error.message : "GraphQL error";
-    if (message.includes("netProfitAmount") || message.includes("totalClaimAmount")) {
+    if (
+      message.includes("profileName") ||
+      message.includes("profileImageUrl") ||
+      message.includes("profileVerification")
+    ) {
+      body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY, { limit: cappedLimit });
+    } else if (message.includes("netProfitAmount") || message.includes("totalClaimAmount")) {
       throw new Error("Indexer schema is outdated. Deploy the latest mog-indexer and reindex to enable global profit stats.");
+    } else {
+      throw error;
     }
-    throw error;
   }
   return {
     global: body.data?.GlobalStats?.[0] || null,
@@ -861,7 +905,9 @@ const fetchAvatarImage = async (rawUrl) => {
   }
 
   const host = avatarUrl.hostname.toLowerCase();
-  if (!(host === "abs.xyz" || host.endsWith(ALLOWED_AVATAR_HOST_SUFFIX))) {
+  const allowed =
+    ALLOWED_AVATAR_EXACT_HOSTS.has(host) || ALLOWED_AVATAR_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix));
+  if (!allowed) {
     throw new Error("Avatar host is not allowed");
   }
 

@@ -104,6 +104,15 @@ function parseWei(value) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function setCurrentView(view, options = {}) {
   const next = view === "global" ? "global" : "wallet";
   currentView = next;
@@ -167,13 +176,32 @@ function renderLeaderboardRows(rows) {
       const totalClaims = parseWei(row.totalClaimAmount);
       const keySpend = parseWei(row.keyPurchaseAmount);
       const walletLabel = WALLET_REGEX.test(wallet) ? shortAddress(wallet) : wallet;
+      const profileName = typeof row.profileName === "string" ? row.profileName.trim() : "";
+      const profileImage = typeof row.profileImageUrl === "string" ? row.profileImageUrl.trim() : "";
+      const displayName = profileName || walletLabel;
+      const displayNameSafe = escapeHtml(displayName.length > 22 ? `${displayName.slice(0, 21)}...` : displayName);
+      const walletLabelSafe = escapeHtml(walletLabel);
+      const walletSafe = escapeHtml(wallet);
+      const avatarFallback = escapeHtml((displayName.charAt(0) || "?").toUpperCase());
+      const avatarMarkup = profileImage
+        ? `<img class="leaderboard-avatar" src="${escapeHtml(profileImage)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
+        : `<span class="leaderboard-avatar leaderboard-avatar-fallback">${avatarFallback}</span>`;
+      const subtitleMarkup = profileName
+        ? `<span class="leaderboard-player-address">${walletLabelSafe}</span>`
+        : "";
 
       return `
         <tr>
           <td>${index + 1}</td>
           <td>
-            <button class="leaderboard-wallet-btn" type="button" data-wallet="${wallet}">
-              ${walletLabel}
+            <button class="leaderboard-wallet-btn" type="button" data-wallet="${walletSafe}">
+              <span class="leaderboard-player">
+                ${avatarMarkup}
+                <span class="leaderboard-player-meta">
+                  <span class="leaderboard-player-name">${displayNameSafe}</span>
+                  ${subtitleMarkup}
+                </span>
+              </span>
             </button>
           </td>
           <td>${withSign(net)}</td>
