@@ -99,7 +99,7 @@ query WalletOverview($wallet: String!) {
 `;
 
 const GLOBAL_STATS_AND_LEADERBOARD_QUERY = `
-query GlobalStatsAndLeaderboard($limit: Int!) {
+query GlobalStatsAndLeaderboard($limit: Int!, $offset: Int!) {
   GlobalStats(where: { id: { _eq: "global" } }) {
     totalUniquePlayers
     keyPurchaseEvents
@@ -114,8 +114,9 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
     updatedAtTimestamp
   }
   PlayerStats(
-    order_by: [{ netProfitAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    order_by: [{ totalClaimAmount: desc }, { keyPurchaseAmount: desc }, { wallet: asc }]
     limit: $limit
+    offset: $offset
   ) {
     wallet
     profileName
@@ -135,7 +136,7 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
 `;
 
 const GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY = `
-query GlobalStatsAndLeaderboard($limit: Int!) {
+query GlobalStatsAndLeaderboard($limit: Int!, $offset: Int!) {
   GlobalStats(where: { id: { _eq: "global" } }) {
     totalUniquePlayers
     keyPurchaseEvents
@@ -150,8 +151,9 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
     updatedAtTimestamp
   }
   PlayerStats(
-    order_by: [{ netProfitAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    order_by: [{ totalClaimAmount: desc }, { keyPurchaseAmount: desc }, { wallet: asc }]
     limit: $limit
+    offset: $offset
   ) {
     wallet
     keysPurchased
@@ -569,10 +571,11 @@ const fetchPlayerStats = async (wallet) => {
 
 const fetchGlobalStats = async (limit = 100, options = {}) => {
   const cappedLimit = Math.max(1, Math.min(200, Number.parseInt(String(limit), 10) || 100));
+  const offset = Math.max(0, Number.parseInt(String(options?.offset ?? 0), 10) || 0);
   const includeCurrentWeekProjected = Boolean(options?.includeCurrentWeekProjected);
   let body;
   try {
-    body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY, { limit: cappedLimit });
+    body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY, { limit: cappedLimit, offset });
   } catch (error) {
     const message = error instanceof Error ? error.message : "GraphQL error";
     if (
@@ -580,7 +583,7 @@ const fetchGlobalStats = async (limit = 100, options = {}) => {
       message.includes("profileImageUrl") ||
       message.includes("profileVerification")
     ) {
-      body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY, { limit: cappedLimit });
+      body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY, { limit: cappedLimit, offset });
     } else if (message.includes("netProfitAmount") || message.includes("totalClaimAmount")) {
       throw new Error("Indexer schema is outdated. Deploy the latest mog-indexer and reindex to enable global profit stats.");
     } else {
@@ -1005,9 +1008,11 @@ const app = createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/global-stats") {
       const requestedLimit = url.searchParams.get("limit") || "100";
       const limit = Number.parseInt(requestedLimit, 10);
+      const requestedOffset = url.searchParams.get("offset") || "0";
+      const offset = Number.parseInt(requestedOffset, 10);
       const includeProjectedRaw = (url.searchParams.get("includeCurrentWeekProjected") || "").trim().toLowerCase();
       const includeCurrentWeekProjected = includeProjectedRaw === "1" || includeProjectedRaw === "true";
-      const payload = await fetchGlobalStats(limit, { includeCurrentWeekProjected });
+      const payload = await fetchGlobalStats(limit, { includeCurrentWeekProjected, offset });
       res.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "public, max-age=20, stale-while-revalidate=40",

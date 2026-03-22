@@ -78,7 +78,7 @@ query WalletOverview($wallet: String!) {
 `;
 
 const GLOBAL_STATS_AND_LEADERBOARD_QUERY = `
-query GlobalStatsAndLeaderboard($limit: Int!) {
+query GlobalStatsAndLeaderboard($limit: Int!, $offset: Int!) {
   GlobalStats(where: { id: { _eq: "global" } }) {
     totalUniquePlayers
     keyPurchaseEvents
@@ -92,8 +92,9 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
     updatedAtTimestamp
   }
   PlayerStats(
-    order_by: [{ keyPurchaseAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    order_by: [{ totalClaimAmount: desc }, { keyPurchaseAmount: desc }, { wallet: asc }]
     limit: $limit
+    offset: $offset
   ) {
     wallet
     profileName
@@ -112,7 +113,7 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
 `;
 
 const GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY = `
-query GlobalStatsAndLeaderboard($limit: Int!) {
+query GlobalStatsAndLeaderboard($limit: Int!, $offset: Int!) {
   GlobalStats(where: { id: { _eq: "global" } }) {
     totalUniquePlayers
     keyPurchaseEvents
@@ -126,8 +127,9 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
     updatedAtTimestamp
   }
   PlayerStats(
-    order_by: [{ keyPurchaseAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    order_by: [{ totalClaimAmount: desc }, { keyPurchaseAmount: desc }, { wallet: asc }]
     limit: $limit
+    offset: $offset
   ) {
     wallet
     keysPurchased
@@ -260,10 +262,11 @@ export const fetchPlayerStats = async (wallet) => {
 
 export const fetchGlobalStats = async (limit = 100, options = {}) => {
   const cappedLimit = Math.max(1, Math.min(200, Number.parseInt(String(limit), 10) || 100));
+  const offset = Math.max(0, Number.parseInt(String(options?.offset ?? 0), 10) || 0);
   const includeCurrentWeekProjected = Boolean(options?.includeCurrentWeekProjected);
   let body;
   try {
-    body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY, { limit: cappedLimit });
+    body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY, { limit: cappedLimit, offset });
   } catch (error) {
     const message = error instanceof Error ? error.message : "GraphQL error";
     if (
@@ -271,7 +274,7 @@ export const fetchGlobalStats = async (limit = 100, options = {}) => {
       message.includes("profileImageUrl") ||
       message.includes("profileVerification")
     ) {
-      body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY, { limit: cappedLimit });
+      body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY, { limit: cappedLimit, offset });
     } else if (message.includes("totalClaimAmount")) {
       throw new Error("Indexer schema is outdated. Deploy the latest mog-indexer and reindex to enable global stats.");
     } else {

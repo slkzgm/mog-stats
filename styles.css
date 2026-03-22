@@ -22,6 +22,7 @@
 
 html {
   color-scheme: dark;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -264,6 +265,11 @@ button {
   min-height: 334px;
 }
 
+.page-header-shell-leaderboard {
+  min-height: 0;
+  gap: 10px;
+}
+
 .hero {
   margin: 0;
 }
@@ -301,6 +307,12 @@ button {
   max-width: 820px;
 }
 
+.hero-global {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .hero-caption,
 .hero-eyebrow {
   display: flex;
@@ -321,7 +333,7 @@ button {
 }
 
 .hero-description {
-  margin-top: 20px;
+  margin-top: 8px;
   font-size: 0.78rem;
   line-height: 1.8;
 }
@@ -931,6 +943,10 @@ button {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.008), transparent 14%),
     linear-gradient(180deg, rgba(12, 12, 12, 0.98), rgba(7, 7, 7, 0.99));
+}
+
+.page-header-shell-leaderboard + .status {
+  min-height: 0;
 }
 
 .global-metrics {

@@ -9,9 +9,11 @@ export default async function handler(req, res) {
 
     const requestedLimit = getQueryParam(req, "limit");
     const limit = Number.parseInt(requestedLimit || "100", 10);
+    const requestedOffset = getQueryParam(req, "offset");
+    const offset = Number.parseInt(requestedOffset || "0", 10);
     const includeProjectedRaw = (getQueryParam(req, "includeCurrentWeekProjected") || "").trim().toLowerCase();
     const includeCurrentWeekProjected = includeProjectedRaw === "1" || includeProjectedRaw === "true";
-    const payload = await fetchGlobalStats(limit, { includeCurrentWeekProjected });
+    const payload = await fetchGlobalStats(limit, { includeCurrentWeekProjected, offset });
 
     json(res, 200, payload, "public, max-age=20, stale-while-revalidate=40");
   } catch (error) {

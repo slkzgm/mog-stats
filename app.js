@@ -48,6 +48,8 @@ const leaderboardPageSizeSelect = document.querySelector("#leaderboard-page-size
 const leaderboardCount = document.querySelector("#leaderboard-count");
 const leaderboardBody = document.querySelector("#leaderboard-body");
 const leaderboardMeta = document.querySelector("#leaderboard-meta");
+const leaderboardPrevBtn = document.querySelector("#leaderboard-prev-btn");
+const leaderboardNextBtn = document.querySelector("#leaderboard-next-btn");
 
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const WEI_IN_ETH = 10n ** 18n;
@@ -75,7 +77,10 @@ let currentView = "stats";
 let overviewLoaded = false;
 let overviewLoadedProjectionMode = false;
 let overviewLoadedLimit = DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
+let overviewLoadedOffset = 0;
 let leaderboardPageSize = DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
+let leaderboardOffset = 0;
+let leaderboardTotalRows = 0;
 let logAnimationToken = 0;
 let logAnimationTimers = [];
 
@@ -293,6 +298,32 @@ function showOverviewError(message, targetView = currentView) {
   if (leaderboardMeta) {
     leaderboardMeta.textContent = targetView === "leaderboard" ? "Leaderboard data unavailable." : "Overview unavailable.";
   }
+
+  if (leaderboardPrevBtn) leaderboardPrevBtn.disabled = true;
+  if (leaderboardNextBtn) leaderboardNextBtn.disabled = true;
+}
+
+function updateLeaderboardControls(rowsShown, totalRows) {
+  const safeTotal = Math.max(totalRows, leaderboardOffset + rowsShown);
+  const start = rowsShown ? leaderboardOffset + 1 : 0;
+  const end = leaderboardOffset + rowsShown;
+  const currentPage = Math.floor(leaderboardOffset / leaderboardPageSize) + 1;
+  const totalPages = safeTotal > 0 ? Math.ceil(safeTotal / leaderboardPageSize) : 1;
+
+  if (leaderboardPrevBtn) {
+    leaderboardPrevBtn.disabled = leaderboardOffset <= 0;
+  }
+
+  if (leaderboardNextBtn) {
+    leaderboardNextBtn.disabled = rowsShown < leaderboardPageSize || end >= safeTotal;
+  }
+
+  leaderboardCount.textContent = rowsShown ? `${start}-${end} of ${safeTotal} wallets` : "0 wallets";
+  if (leaderboardMeta) {
+    leaderboardMeta.textContent = rowsShown
+      ? `PAGE ${currentPage}/${totalPages} // SORTED BY TOTAL CLAIMS`
+      : "No indexed wallets available yet.";
+  }
 }
 
 function renderLeaderboardRows(rows) {
@@ -308,15 +339,13 @@ function renderLeaderboardRows(rows) {
 
   if (!sortedRows.length) {
     leaderboardBody.innerHTML = `<tr class="leaderboard-row"><td colspan="3">No player rows available yet.</td></tr>`;
-    leaderboardCount.textContent = "0 wallets";
-    if (leaderboardMeta) {
-      leaderboardMeta.textContent = "No indexed wallets available yet.";
-    }
+    updateLeaderboardControls(0, leaderboardTotalRows);
     return;
   }
 
   leaderboardBody.innerHTML = sortedRows
     .map((row, index) => {
+      const absoluteRank = leaderboardOffset + index;
       const wallet = (row.wallet || "").toLowerCase();
       const teamRevenue = toTeamRevenueWei(parseWei(row.keyPurchaseAmount));
       const totalClaims = parseWei(row.totalClaimAmount);
@@ -335,21 +364,21 @@ function renderLeaderboardRows(rows) {
         ? `<img class="leaderboard-avatar" src="${escapeHtml(profileImage)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
         : `<span class="leaderboard-avatar leaderboard-avatar-fallback">${avatarFallback}</span>`;
       const rankIcon =
-        index === 0
+        absoluteRank === 0
           ? `<span class="material-symbols-outlined leaderboard-rank-icon leaderboard-rank-icon-1">workspace_premium</span>`
-          : index === 1
+          : absoluteRank === 1
             ? `<span class="material-symbols-outlined leaderboard-rank-icon leaderboard-rank-icon-2">military_tech</span>`
-            : index === 2
+            : absoluteRank === 2
               ? `<span class="material-symbols-outlined leaderboard-rank-icon leaderboard-rank-icon-3">military_tech</span>`
               : "";
 
       return `
-        <tr class="leaderboard-row${index < 3 ? ` leaderboard-row-top leaderboard-row-top-${index + 1}` : ""}" style="--row-index:${index}">
+        <tr class="leaderboard-row${absoluteRank < 3 ? ` leaderboard-row-top leaderboard-row-top-${absoluteRank + 1}` : ""}" style="--row-index:${index}">
           <td>
             <span class="leaderboard-rank">
-              <span class="leaderboard-rank-badge leaderboard-rank-badge-${index < 3 ? index + 1 : 0}">
+              <span class="leaderboard-rank-badge leaderboard-rank-badge-${absoluteRank < 3 ? absoluteRank + 1 : 0}">
                 ${rankIcon}
-                <span>${String(index + 1).padStart(2, "0")}</span>
+                <span>${String(leaderboardOffset + index + 1).padStart(2, "0")}</span>
               </span>
             </span>
           </td>
@@ -376,10 +405,7 @@ function renderLeaderboardRows(rows) {
     })
     .join("");
 
-  leaderboardCount.textContent = `${sortedRows.length} wallets`;
-  if (leaderboardMeta) {
-    leaderboardMeta.textContent = `SHOWING TOP ${sortedRows.length} ROWS // SORTED BY TOTAL CLAIMS`;
-  }
+  updateLeaderboardControls(sortedRows.length, leaderboardTotalRows);
 }
 
 function renderGlobalStats(payload) {
@@ -427,6 +453,7 @@ function renderGlobalStats(payload) {
 }
 
 function renderLeaderboard(payload) {
+  leaderboardTotalRows = Number.parseInt(String(payload?.global?.totalUniquePlayers ?? payload?.leaderboard?.length ?? 0), 10) || 0;
   renderLeaderboardRows(payload?.leaderboard || []);
   leaderboardStatus.textContent = "";
   leaderboardCard.classList.remove("hidden");
@@ -437,6 +464,7 @@ async function loadOverviewData(force = false) {
     overviewLoaded &&
     overviewLoadedProjectionMode === includeGlobalCurrentWeekProjected &&
     overviewLoadedLimit === leaderboardPageSize &&
+    overviewLoadedOffset === leaderboardOffset &&
     !force
   ) {
     return;
@@ -447,7 +475,7 @@ async function loadOverviewData(force = false) {
   leaderboardStatus.textContent = "Loading leaderboard...";
   leaderboardCard.classList.add("hidden");
   const includeProjected = includeGlobalCurrentWeekProjected ? "&includeCurrentWeekProjected=1" : "";
-  const response = await fetch(`/api/global-stats?limit=${leaderboardPageSize}${includeProjected}`);
+  const response = await fetch(`/api/global-stats?limit=${leaderboardPageSize}&offset=${leaderboardOffset}${includeProjected}`);
   const payload = await response.json();
 
   if (!response.ok) {
@@ -460,6 +488,7 @@ async function loadOverviewData(force = false) {
   overviewLoaded = hasGlobal;
   overviewLoadedProjectionMode = includeGlobalCurrentWeekProjected;
   overviewLoadedLimit = leaderboardPageSize;
+  overviewLoadedOffset = leaderboardOffset;
 }
 
 function pickRandomItem(items) {
@@ -1083,10 +1112,39 @@ includeCurrentWeekGlobalCheckbox.addEventListener("change", async () => {
 
 leaderboardPageSizeSelect.addEventListener("change", async () => {
   leaderboardPageSize = Number.parseInt(leaderboardPageSizeSelect.value, 10) || DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
+  leaderboardOffset = 0;
   try {
     await loadOverviewData(true);
   } catch (error) {
     showOverviewError(error instanceof Error ? error.message : "Leaderboard unavailable", currentView === "leaderboard" ? "leaderboard" : "stats");
+  }
+});
+
+leaderboardPrevBtn.addEventListener("click", async () => {
+  if (leaderboardOffset <= 0) return;
+
+  const previousOffset = leaderboardOffset;
+  leaderboardOffset = Math.max(0, leaderboardOffset - leaderboardPageSize);
+
+  try {
+    await loadOverviewData(true);
+  } catch (error) {
+    leaderboardOffset = previousOffset;
+    showOverviewError(error instanceof Error ? error.message : "Leaderboard unavailable", "leaderboard");
+  }
+});
+
+leaderboardNextBtn.addEventListener("click", async () => {
+  if (leaderboardOffset + leaderboardPageSize >= leaderboardTotalRows) return;
+
+  const previousOffset = leaderboardOffset;
+  leaderboardOffset += leaderboardPageSize;
+
+  try {
+    await loadOverviewData(true);
+  } catch (error) {
+    leaderboardOffset = previousOffset;
+    showOverviewError(error instanceof Error ? error.message : "Leaderboard unavailable", "leaderboard");
   }
 });
 
@@ -1171,6 +1229,7 @@ async function initializePage() {
   includeCurrentWeekProjected = Boolean(includeCurrentWeekCheckbox.checked);
   includeGlobalCurrentWeekProjected = Boolean(includeCurrentWeekGlobalCheckbox.checked);
   leaderboardPageSize = Number.parseInt(leaderboardPageSizeSelect.value, 10) || DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
+  leaderboardOffset = 0;
   await loadDecorGifOptions();
   applyRandomDecorGif();
   await bootstrapFromQueryParam();
