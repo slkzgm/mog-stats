@@ -129,12 +129,19 @@ button {
 .brand {
   position: relative;
   z-index: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
   font-family: "Space Grotesk", sans-serif;
   font-size: 1.08rem;
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--accent);
   text-transform: uppercase;
+}
+
+.brand:hover {
+  color: var(--accent-soft);
 }
 
 .topbar-actions {
@@ -612,6 +619,19 @@ button {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.status[data-state="loading"] {
+  color: var(--text-dim);
+}
+
+.status[data-state="loading"]::before {
+  content: "// ";
+  color: var(--accent-soft);
+}
+
+.status[data-state="idle"] {
+  color: var(--text-dim);
 }
 
 .stats-panel {

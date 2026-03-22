@@ -8,6 +8,7 @@ const leaderboardView = document.querySelector("#leaderboard-view");
 const statsViewBtn = document.querySelector("#view-stats-btn");
 const leaderboardViewBtn = document.querySelector("#view-leaderboard-btn");
 const backToStatsBtn = document.querySelector("#back-to-stats-btn");
+const brandHomeBtn = document.querySelector("#brand-home-btn");
 const statsHeroTitleMain = document.querySelector("#stats-hero-title-main");
 const statsHeroTitleAccent = document.querySelector("#stats-hero-title-accent");
 const statsHeroCaption = document.querySelector("#stats-hero-caption");
@@ -260,6 +261,12 @@ function setProfitSummary(netProfitWei) {
   netPillMeta.textContent = meta;
 }
 
+function setStatusMessage(element, message = "", state = "idle") {
+  if (!element) return;
+  element.textContent = message;
+  element.dataset.state = message ? state : "idle";
+}
+
 function renderDefaultLogs() {
   renderWalletLogs([
     { time: "[boot]", message: "SYSTEM IDLE. AWAITING USER INPUT.", accent: true },
@@ -422,12 +429,12 @@ function setCurrentView(view, options = {}) {
   }
 
   if (isLeaderboard) {
-    statusEl.textContent = "";
+    setStatusMessage(statusEl, "", "idle");
     clearSuggestions();
   } else {
-    leaderboardStatus.textContent = "";
+    setStatusMessage(leaderboardStatus, "", "idle");
     if (!isWallet) {
-      statusEl.textContent = "";
+      setStatusMessage(statusEl, "", "idle");
       renderDefaultLogs();
       showShareStatus("");
     }
@@ -447,7 +454,7 @@ function setCurrentView(view, options = {}) {
 }
 
 function showError(message) {
-  statusEl.textContent = message;
+  setStatusMessage(statusEl, message, "error");
   card.classList.add("hidden");
   currentCardData = null;
   projectedWeekNote.textContent = "Share-ready snapshot";
@@ -462,10 +469,10 @@ function showShareStatus(message) {
 
 function showOverviewError(message, targetView = currentView) {
   if (targetView === "leaderboard") {
-    leaderboardStatus.textContent = message;
+    setStatusMessage(leaderboardStatus, message, "error");
     leaderboardCard.classList.add("hidden");
   } else {
-    homeGlobalStatus.textContent = message;
+    setStatusMessage(homeGlobalStatus, message, "error");
     homeGlobalCard.classList.add("hidden");
   }
 
@@ -620,14 +627,14 @@ function renderGlobalStats(payload) {
     globalProjectedWeekNote.textContent = "All-time snapshot. Enable projection to include the current week estimate.";
   }
 
-  homeGlobalStatus.textContent = "";
+  setStatusMessage(homeGlobalStatus, "", "idle");
   homeGlobalCard.classList.remove("hidden");
 }
 
 function renderLeaderboard(payload) {
   leaderboardTotalRows = Number.parseInt(String(payload?.global?.totalUniquePlayers ?? payload?.leaderboard?.length ?? 0), 10) || 0;
   renderLeaderboardRows(payload?.leaderboard || []);
-  leaderboardStatus.textContent = "";
+  setStatusMessage(leaderboardStatus, "", "idle");
   leaderboardCard.classList.remove("hidden");
 }
 
@@ -642,9 +649,9 @@ async function loadOverviewData(force = false) {
     return;
   }
 
-  homeGlobalStatus.textContent = "Loading global stats...";
+  setStatusMessage(homeGlobalStatus, "Loading global stats...", "loading");
   homeGlobalCard.classList.add("hidden");
-  leaderboardStatus.textContent = "Loading leaderboard...";
+  setStatusMessage(leaderboardStatus, "Loading leaderboard...", "loading");
   leaderboardCard.classList.add("hidden");
   const includeProjected = includeGlobalCurrentWeekProjected ? "&includeCurrentWeekProjected=1" : "";
   const response = await fetch(`/api/global-stats?limit=${leaderboardPageSize}&offset=${leaderboardOffset}${includeProjected}`);
@@ -867,7 +874,7 @@ async function searchProfiles(query) {
   }
 
   renderSuggestions(payload.users || []);
-  statusEl.textContent = "";
+  setStatusMessage(statusEl, "", "idle");
 }
 
 function setProfileIdentity(wallet, profile) {
@@ -1060,7 +1067,7 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
     { time: "[mode]", message: projectionLogMessage },
   ], { animate: true });
 
-  statusEl.textContent = "";
+  setStatusMessage(statusEl, "", "idle");
   card.classList.remove("hidden");
   setWalletInUrl(stats.wallet);
   showShareStatus("");
@@ -1088,7 +1095,7 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
 
 async function loadWalletStats(wallet, profile = null, options = {}) {
   const includeProjection = Boolean(options.includeCurrentWeekProjected ?? includeCurrentWeekProjected);
-  statusEl.textContent = "Loading wallet stats...";
+  setStatusMessage(statusEl, "Loading wallet stats...", "loading");
   card.classList.add("hidden");
   currentCardData = null;
   setProjectionModeLabel(includeProjection);
@@ -1185,7 +1192,7 @@ walletInput.addEventListener("input", () => {
       await searchProfiles(value);
     } catch (error) {
       clearSuggestions();
-      statusEl.textContent = error instanceof Error ? error.message : "Search failed";
+      setStatusMessage(statusEl, error instanceof Error ? error.message : "Search failed", "error");
     }
   }, SEARCH_DEBOUNCE_MS);
 });
@@ -1329,6 +1336,15 @@ leaderboardNextBtn.addEventListener("click", async () => {
 });
 
 statsViewBtn.addEventListener("click", async () => {
+  setCurrentView("stats");
+  try {
+    await loadOverviewData();
+  } catch (error) {
+    showOverviewError(error instanceof Error ? error.message : "Global stats unavailable", "stats");
+  }
+});
+
+brandHomeBtn?.addEventListener("click", async () => {
   setCurrentView("stats");
   try {
     await loadOverviewData();
