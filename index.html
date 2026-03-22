@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MOG Wallet Stats</title>
+    <title>MOG Archive Stats</title>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -11,176 +11,268 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Press+Start+2P&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="layout">
-      <section class="panel">
-        <h1>MOG Wallet Stats</h1>
-        <p class="subtitle">Key purchases, rewards claimed, and player activity across MOG.</p>
-        <img class="panel-ghost hidden" alt="" aria-hidden="true" />
+    <div class="scanline-overlay" aria-hidden="true"></div>
 
-        <nav class="view-switch" aria-label="View selector">
-          <button id="view-wallet-btn" type="button" class="view-btn is-active">Wallet</button>
-          <button id="view-global-btn" type="button" class="view-btn">General stats</button>
-        </nav>
+    <nav class="topbar" aria-label="Primary navigation">
+      <div class="topbar-inner">
+        <span class="brand">MOG_ARCHIVE</span>
+        <div class="topnav">
+          <button id="view-stats-btn" type="button" class="nav-link is-active">Stats</button>
+          <button id="view-leaderboard-btn" type="button" class="nav-link">Leaderboard</button>
+        </div>
+        <div class="topbar-spacer" aria-hidden="true"></div>
+      </div>
+    </nav>
 
-        <section id="wallet-view" class="view-pane">
-          <form id="wallet-form" class="wallet-form">
-            <label for="wallet-input">Abstract username (or wallet address)</label>
-            <div class="input-row">
-              <input
-                id="wallet-input"
-                name="wallet"
-                type="text"
-                placeholder="username or 0x..."
-                autocomplete="off"
-                spellcheck="false"
-                required
-              />
-              <button type="submit">Search</button>
+    <main class="page-shell">
+      <section id="stats-view" class="view-page">
+        <header class="hero hero-stats">
+          <div class="hero-toolbar">
+            <div>
+              <h1 class="hero-title">
+                <span class="hero-title-main">SYSTEM_</span>
+                <span class="hero-title-accent">STATS</span>
+              </h1>
+              <div class="hero-caption">
+                <span class="hero-caption-line" aria-hidden="true"></span>
+                <p>PROTOCOL INTERFACE // ARCHIVE ACCESS</p>
+              </div>
             </div>
+            <button id="back-to-stats-btn" type="button" class="back-btn hidden">Back To Stats</button>
+          </div>
+        </header>
+
+        <section class="terminal-panel search-panel">
+          <form id="wallet-form" class="wallet-form" autocomplete="off">
+            <label class="terminal-label" for="wallet-input">Enter_Wallet_Address_Or_ID</label>
+            <div class="input-row">
+              <div class="input-shell">
+                <span class="input-hash" aria-hidden="true">#</span>
+                <input
+                  id="wallet-input"
+                  name="wallet"
+                  type="text"
+                  placeholder="0x... or @username"
+                  spellcheck="false"
+                  required
+                />
+              </div>
+              <button type="submit" class="action-btn action-btn-primary">Search</button>
+              <a
+                class="action-btn action-btn-secondary"
+                href="https://mog.onchainheroes.xyz/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Play Now</a
+              >
+            </div>
+
             <div id="suggestions" class="suggestions hidden" role="listbox" aria-label="Profile suggestions"></div>
+
             <label class="projection-toggle" for="include-current-week">
               <input id="include-current-week" type="checkbox" />
               Include current week projected payout (estimate)
             </label>
           </form>
-
-          <p id="status" class="status" aria-live="polite"></p>
-
-          <article id="stats-card" class="card hidden">
-            <div id="capture-content">
-              <header class="card-head">
-                <div class="identity">
-                  <img id="profile-avatar" class="avatar hidden" alt="Profile avatar" />
-                  <div>
-                    <h2 id="wallet-title"></h2>
-                    <p id="wallet-subtitle" class="wallet-subtitle"></p>
-                  </div>
-                </div>
-                <span id="net-pill" class="pill">Total rewards 0 ETH</span>
-              </header>
-
-              <div class="grid">
-                <div class="stat stat-key stat-with-icon">
-                  <img class="stat-badge stat-badge-key" src="/assets/key_big.png" alt="" aria-hidden="true" />
-                  <span>Key spend</span>
-                  <strong id="keys-eth">-</strong>
-                </div>
-                <div class="stat">
-                  <span>Weekly claims</span>
-                  <strong id="weekly-eth">-</strong>
-                </div>
-                <div class="stat stat-jackpot stat-with-icon">
-                  <img class="stat-badge stat-badge-jackpot" src="/assets/jackpot_big.png" alt="" aria-hidden="true" />
-                  <span>Jackpot claims</span>
-                  <strong id="jackpot-eth">-</strong>
-                </div>
-                <div class="stat">
-                  <span>Total claims</span>
-                  <strong id="total-eth">-</strong>
-                </div>
-              </div>
-
-              <div class="meta-grid">
-                <span id="keys-count">Keys bought: -</span>
-                <span id="keys-events">Purchase events: -</span>
-                <span id="weekly-events">Weekly events: -</span>
-                <span id="jackpot-events">Jackpot events: -</span>
-              </div>
-              <p id="projected-week-note" class="projected-week-note hidden"></p>
-            </div>
-
-            <section class="share-tools" aria-label="Card tools">
-              <button id="copy-image-btn" type="button" class="secondary-btn">Copy as Image</button>
-              <p id="share-status" class="share-status" aria-live="polite"></p>
-            </section>
-          </article>
         </section>
 
-        <section id="global-view" class="view-pane hidden">
-          <p id="global-status" class="status" aria-live="polite"></p>
-          <article id="global-card" class="card hidden global-card">
-            <h2 class="global-title">Global overview</h2>
-            <label class="projection-toggle global-projection-toggle" for="include-current-week-global">
+        <p id="status" class="status" aria-live="polite"></p>
+
+        <article id="home-global-card" class="stats-panel hidden">
+          <div class="stats-panel-head">
+            <div class="terminal-chip">global_overview.json</div>
+            <label class="projection-toggle projection-toggle-inline" for="include-current-week-global">
               <input id="include-current-week-global" type="checkbox" />
               Include current week projected payout (estimate)
             </label>
-            <p id="global-projected-week-note" class="projected-week-note hidden"></p>
-            <div class="global-metrics">
-              <div class="stat">
-                <span>Unique players</span>
-                <strong id="g-players">-</strong>
+          </div>
+          <p id="home-global-status" class="status status-inline" aria-live="polite"></p>
+          <div class="global-metrics">
+            <div class="global-metric-card">
+              <p>Unique Players</p>
+              <strong id="g-players">-</strong>
+            </div>
+            <div class="global-metric-card">
+              <p>Keys Bought</p>
+              <strong id="g-keys">-</strong>
+            </div>
+            <div class="global-metric-card">
+              <p>Key Spend</p>
+              <strong id="g-key-spend">-</strong>
+            </div>
+            <div class="global-metric-card">
+              <p>Total Claims</p>
+              <strong id="g-total-claims">-</strong>
+            </div>
+            <div class="global-metric-card">
+              <p>Weekly Claims</p>
+              <strong id="g-weekly-claims">-</strong>
+            </div>
+            <div class="global-metric-card">
+              <p>Jackpot Claims</p>
+              <strong id="g-jackpot-claims">-</strong>
+            </div>
+            <div class="global-metric-card">
+              <p>Team Revenue</p>
+              <strong id="g-team-revenue">-</strong>
+            </div>
+            <div class="global-metric-card">
+              <p>Claim Events</p>
+              <strong id="g-claim-events">-</strong>
+            </div>
+          </div>
+          <p id="global-projected-week-note" class="projected-week-note hidden"></p>
+        </article>
+
+        <article id="stats-card" class="stats-panel hidden">
+          <div id="capture-content" class="stats-surface">
+            <header class="stats-header">
+              <div class="terminal-chip">wallet_node.json</div>
+              <div class="stats-header-main">
+                <div class="identity">
+                  <img id="profile-avatar" class="avatar hidden" alt="Profile avatar" />
+                  <div class="identity-copy">
+                    <h2 id="wallet-title">Unknown wallet</h2>
+                    <p id="wallet-subtitle" class="wallet-subtitle"></p>
+                  </div>
+                </div>
+                <span id="net-pill" class="summary-pill">TOTAL REWARDS 0 ETH</span>
               </div>
-              <div class="stat">
-                <span>Keys bought</span>
-                <strong id="g-keys">-</strong>
-              </div>
-              <div class="stat">
-                <span>Key spend</span>
-                <strong id="g-key-spend">-</strong>
-              </div>
-              <div class="stat">
-                <span>Total claims</span>
-                <strong id="g-total-claims">-</strong>
-              </div>
-              <div class="stat">
-                <span>Weekly claims</span>
-                <strong id="g-weekly-claims">-</strong>
-              </div>
-              <div class="stat">
-                <span>Jackpot claims</span>
-                <strong id="g-jackpot-claims">-</strong>
-              </div>
-              <div class="stat">
-                <span>Team revenue</span>
-                <strong id="g-team-revenue" class="global-team-revenue">-</strong>
-                <small class="stat-footnote">Estimated as 10% of key spend</small>
-              </div>
-              <div class="stat">
-                <span>Total claim events</span>
-                <strong id="g-claim-events">-</strong>
-              </div>
+            </header>
+
+            <img class="panel-ghost hidden" alt="" aria-hidden="true" />
+
+            <div class="stats-grid">
+              <section class="metric-card metric-card-primary">
+                <p class="metric-label">Total Rewards</p>
+                <strong id="total-eth">-</strong>
+                <div class="metric-meter">
+                  <span class="metric-meter-bar metric-meter-bar-primary"></span>
+                </div>
+              </section>
+
+              <section class="metric-card">
+                <p class="metric-label">Key Spend</p>
+                <strong id="keys-eth">-</strong>
+                <p id="keys-count" class="metric-subline">Keys bought: -</p>
+              </section>
+
+              <section class="metric-card">
+                <p class="metric-label">Weekly Claims</p>
+                <strong id="weekly-eth">-</strong>
+                <p id="weekly-events" class="metric-subline">Weekly events: -</p>
+              </section>
+
+              <section class="metric-card">
+                <p class="metric-label">Jackpot Claims</p>
+                <strong id="jackpot-eth">-</strong>
+                <p id="jackpot-events" class="metric-subline">Jackpot events: -</p>
+              </section>
             </div>
 
-            <section class="leaderboard-wrap" aria-label="Top players leaderboard">
-              <div class="leaderboard-head">
-                <h3>Top players</h3>
-                <span id="leaderboard-count" class="leaderboard-count">-</span>
-              </div>
-              <div class="leaderboard-scroll">
-                <table class="leaderboard-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Player</th>
-                      <th>Revenue Generated</th>
-                      <th>Claims</th>
-                      <th>Spend</th>
-                    </tr>
-                  </thead>
-                  <tbody id="leaderboard-body"></tbody>
-                </table>
-              </div>
-            </section>
-          </article>
-        </section>
+            <div class="meta-grid">
+              <span id="keys-events">Purchase events: -</span>
+              <span id="projected-week-pill">Projection mode: disabled</span>
+            </div>
 
-        <section class="play-cta-wrap" aria-label="Play MOG">
-          <a
-            class="play-cta"
-            href="https://mog.onchainheroes.xyz/"
-            target="_blank"
-            rel="noopener noreferrer"
-            >PLAY NOW</a
-          >
+            <p id="projected-week-note" class="projected-week-note hidden"></p>
+          </div>
+
+          <section class="share-tools" aria-label="Card tools">
+            <button id="copy-image-btn" type="button" class="action-btn action-btn-secondary action-btn-inline">
+              Copy as Image
+            </button>
+            <p id="share-status" class="share-status" aria-live="polite"></p>
+          </section>
+        </article>
+
+        <section class="terminal-panel logs-panel">
+          <div class="terminal-topline">
+            <div class="terminal-topline-left">
+              <span class="terminal-dot"></span>
+              <h3>system_logs_v2.0.4</h3>
+            </div>
+            <div class="terminal-topline-right">
+              <span></span>
+              <span></span>
+              <span class="terminal-topline-right-accent"></span>
+            </div>
+          </div>
+          <div id="wallet-log-lines" class="log-list" aria-live="polite">
+            <div class="log-row">
+              <span class="log-time">[boot]</span>
+              <span class="log-message log-message-accent">SYSTEM IDLE. AWAITING USER INPUT.</span>
+            </div>
+            <div class="log-row">
+              <span class="log-time">[hint]</span>
+              <span class="log-message">Search by Abstract username or wallet address.</span>
+            </div>
+          </div>
         </section>
       </section>
+
+      <section id="leaderboard-view" class="view-page hidden">
+        <header class="hero hero-global">
+          <div class="hero-eyebrow">
+            <span class="hero-caption-line" aria-hidden="true"></span>
+            <p>SYSTEM_ACCESS_GRANTED</p>
+          </div>
+          <h1 class="hero-title hero-title-stacked">
+            <span class="hero-title-main">GLOBAL</span>
+            <span class="hero-title-accent">LEADERBOARD</span>
+          </h1>
+          <p class="hero-description">
+            Ranking top indexed players by total claims and network-wide activity.
+          </p>
+        </header>
+
+        <p id="leaderboard-status" class="status" aria-live="polite"></p>
+
+        <article id="leaderboard-card" class="leaderboard-panel hidden">
+          <section class="leaderboard-terminal" aria-label="Top players leaderboard">
+            <div class="leaderboard-terminal-tag">query_results.json</div>
+            <div class="leaderboard-scroll">
+              <table class="leaderboard-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Wallet / Username</th>
+                    <th>Total Rewards</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderboard-body"></tbody>
+              </table>
+            </div>
+
+            <div class="leaderboard-footer">
+              <div class="leaderboard-footer-actions">
+                <button type="button" class="table-btn table-btn-muted" disabled>Previous_Batch</button>
+                <button type="button" class="table-btn">Top_Batch</button>
+              </div>
+              <div class="leaderboard-footer-meta">
+                <span id="leaderboard-count" class="leaderboard-count">-</span>
+                <span id="leaderboard-meta">Showing indexed leaderboard results.</span>
+              </div>
+            </div>
+          </section>
+        </article>
+      </section>
     </main>
+
+    <footer class="page-footer">
+      <div class="page-footer-copy">© 2026 MOG_ARCHIVE // TECHNICAL_SERVICES_DIV</div>
+      <div class="page-footer-status">
+        <span class="status-light"></span>
+        <span>BLACK_GREEN // V2.0_LIVE</span>
+      </div>
+      <div class="page-footer-copy">RPC: ABS_MAINNET</div>
+    </footer>
 
     <script type="module" src="./app.js"></script>
   </body>

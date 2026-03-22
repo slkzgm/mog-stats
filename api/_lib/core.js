@@ -655,14 +655,6 @@ const parseCardPayload = (body) => {
   };
 };
 
-const getSummaryPalette = () => {
-  return {
-    text: "#edf7ff",
-    fill: "rgba(118, 211, 255, 0.18)",
-    stroke: "rgba(118, 211, 255, 0.38)",
-  };
-};
-
 const mimeFromAssetPath = (assetPath) => {
   const ext = extname(assetPath).toLowerCase();
   if (ext === ".gif") return "image/gif";
@@ -738,162 +730,160 @@ const buildPlayerCardSvg = (
 ) => {
   const width = CARD_IMAGE_WIDTH;
   const height = CARD_IMAGE_HEIGHT;
-  const panelX = 18;
-  const panelY = 18;
+  const panelX = 20;
+  const panelY = 20;
   const panelW = width - panelX * 2;
   const panelH = height - panelY * 2;
-  const leftPad = panelX + 34;
-  const topPad = panelY + 34;
-
-  const statY = panelY + 132;
-  const statGap = 16;
-  const statW = (panelW - 72 - statGap * 3) / 4;
-  const statH = 112;
-  const metaW = (panelW - 72 - statGap) / 2;
-  const metaH = 60;
-  const metaGapY = 12;
-  const metaY1 = statY + statH + 18;
-  const metaY2 = metaY1 + metaH + metaGapY;
-
+  const innerX = panelX + 18;
+  const chipY = panelY + 22;
+  const heroY = panelY + 62;
+  const avatarSize = 72;
+  const heroTextX = innerX + avatarSize + 18;
   const safeDisplayName = payload.displayName.length > 18 ? `${payload.displayName.slice(0, 17)}...` : payload.displayName;
+  const summaryLabel = `TOTAL REWARDS ${payload.summaryEth} ETH`;
+  const summaryPillW = Math.max(330, Math.min(480, 120 + summaryLabel.length * 14));
+  const summaryPillX = panelX + panelW - summaryPillW - 22;
+  const summaryPillY = heroY + 4;
+  const cardsY = panelY + 150;
+  const cardGap = 1;
+  const cardW = (panelW - 36 - cardGap * 3) / 4;
+  const cardH = 112;
+  const metaY = cardsY + cardH;
+  const metaH = 42;
+  const purchaseMetaW = (panelW - 36) * 0.5;
+  const logPanelY = metaY + metaH + 12;
+  const logPanelH = panelY + panelH - logPanelY - 18;
 
-  const summaryPalette = getSummaryPalette();
-  const summaryLabel = `Total rewards ${payload.summaryEth} ETH`;
-  const summaryPillW = Math.max(340, Math.min(520, 90 + summaryLabel.length * 18));
-  const summaryPillX = panelX + panelW - summaryPillW - 28;
-  const summaryPillY = topPad + 2;
-
-  const statCard = (x, y, label, value, iconDataUrl = "", iconType = "") => {
-    const iconW = iconType === "key" ? 40 : 42;
-    const iconH = iconW;
-    const iconX = x + statW - iconW - 14;
-    const iconY = y + (statH - iconH) / 2;
-
-    const iconMarkup = iconDataUrl
-      ? `
-      <image href="${iconDataUrl}" x="${iconX}" y="${iconY}" width="${iconW}" height="${iconH}" preserveAspectRatio="xMidYMid meet" opacity="0.96"/>
-    `
-      : "";
-
-    return `
+  const metricCard = (x, label, value, detail = "", options = {}) => `
     <g>
-      <rect x="${x}" y="${y}" width="${statW}" height="${statH}" rx="24" fill="url(#statFillGrad)" stroke="rgba(114, 183, 230, 0.3)" stroke-width="2"/>
-      ${iconMarkup}
-      <text x="${x + 24}" y="${y + 34}" fill="#9eb8d1" font-size="16" font-family="Noto Sans, sans-serif" font-weight="600" letter-spacing="2.2">${escapeXml(
+      <rect x="${x}" y="${cardsY}" width="${cardW}" height="${cardH}" fill="${options.primary ? "url(#metricPrimaryFill)" : "url(#metricFill)"}" />
+      <line x1="${x}" y1="${cardsY}" x2="${x}" y2="${cardsY + cardH}" stroke="rgba(223,255,0,0.08)" stroke-width="1"/>
+      <text x="${x + 18}" y="${cardsY + 24}" fill="#8d8a8a" font-size="11" font-family="Noto Sans Mono, monospace" letter-spacing="3.2">${escapeXml(
         label,
       )}</text>
-      <text x="${x + 24}" y="${y + 82}" fill="#edf7ff" font-size="26" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
-        value,
-      )} ETH</text>
-    </g>
-  `;
-  };
-
-  const metaCard = (x, y, text) => `
-    <g>
-      <rect x="${x}" y="${y}" width="${metaW}" height="${metaH}" rx="20" fill="url(#metaFillGrad)" stroke="rgba(114, 183, 230, 0.23)" stroke-width="2"/>
-      <text x="${x + 22}" y="${y + 39}" fill="#aac4db" font-size="20" font-family="Noto Sans, sans-serif">${escapeXml(text)}</text>
+      <text x="${x + 18}" y="${cardsY + 58}" fill="#ffffff" font-size="30" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
+        `${value} ETH`,
+      )}</text>
+      ${
+        options.meter
+          ? `<rect x="${x + 18}" y="${cardsY + 72}" width="200" height="5" fill="rgba(0,0,0,0.5)"/>
+             <rect x="${x + 18}" y="${cardsY + 72}" width="126" height="5" fill="#dfff00"/>`
+          : ""
+      }
+      ${
+        detail
+          ? `<text x="${x + 18}" y="${cardsY + 88}" fill="#767171" font-size="11" font-family="Noto Sans Mono, monospace" letter-spacing="2.1">${escapeXml(
+              detail.toUpperCase(),
+            )}</text>`
+          : ""
+      }
     </g>
   `;
 
   const avatarMarkup = avatarDataUrl
     ? `
-      <clipPath id="avatarClip"><circle cx="${leftPad + 44}" cy="${topPad + 44}" r="38"/></clipPath>
-      <circle cx="${leftPad + 44}" cy="${topPad + 44}" r="40" fill="#18364f" stroke="rgba(110, 198, 255, 0.86)" stroke-width="4"/>
-      <image href="${avatarDataUrl}" x="${leftPad + 6}" y="${topPad + 6}" width="76" height="76" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatarClip)" />
+      <clipPath id="avatarClip"><rect x="${innerX}" y="${heroY}" width="${avatarSize}" height="${avatarSize}" rx="0"/></clipPath>
+      <rect x="${innerX}" y="${heroY}" width="${avatarSize}" height="${avatarSize}" fill="#131212" stroke="rgba(223,255,0,0.20)" stroke-width="1.5"/>
+      <image href="${avatarDataUrl}" x="${innerX}" y="${heroY}" width="${avatarSize}" height="${avatarSize}" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatarClip)" />
     `
     : `
-      <defs>
-        <linearGradient id="avatarFallbackGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#4bb9ff"/>
-          <stop offset="100%" stop-color="#2ce9b8"/>
-        </linearGradient>
-      </defs>
-      <circle cx="${leftPad + 44}" cy="${topPad + 44}" r="40" fill="url(#avatarFallbackGrad)"/>
-      <text x="${leftPad + 44}" y="${topPad + 58}" fill="#062638" text-anchor="middle" font-size="40" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
-          safeDisplayName.slice(0, 1).toUpperCase() || "?",
-        )}</text>
+      <rect x="${innerX}" y="${heroY}" width="${avatarSize}" height="${avatarSize}" fill="#dfff00"/>
+      <text x="${innerX + avatarSize / 2}" y="${heroY + 49}" text-anchor="middle" fill="#212700" font-size="34" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
+        safeDisplayName.slice(0, 1).toUpperCase() || "?",
+      )}</text>
     `;
 
   const decorMarkup = decorDataUrl
-    ? `<image href="${decorDataUrl}" x="${panelX + panelW - 116}" y="${panelY + panelH - 116}" width="92" height="92" preserveAspectRatio="xMidYMid meet" opacity="0.16"/>`
+    ? `<image href="${decorDataUrl}" x="${panelX + panelW - 168}" y="${cardsY + 32}" width="126" height="126" preserveAspectRatio="xMidYMid meet" opacity="0.92"/>`
     : "";
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
     <linearGradient id="bgFallbackGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0a1727"/>
-      <stop offset="52%" stop-color="#123049"/>
-      <stop offset="100%" stop-color="#0d2f3f"/>
+      <stop offset="0%" stop-color="#111010"/>
+      <stop offset="100%" stop-color="#090909"/>
     </linearGradient>
     <clipPath id="panelClip">
-      <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="26"/>
+      <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="0"/>
     </clipPath>
-    <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(17, 37, 56, 0.42)"/>
-      <stop offset="100%" stop-color="rgba(9, 21, 36, 0.52)"/>
+    <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(33, 30, 30, 0.98)"/>
+      <stop offset="100%" stop-color="rgba(22, 20, 20, 0.98)"/>
     </linearGradient>
-    <linearGradient id="panelTopLine" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="rgba(118, 211, 255, 0.0)"/>
-      <stop offset="35%" stop-color="rgba(118, 211, 255, 0.78)"/>
-      <stop offset="65%" stop-color="rgba(57, 246, 202, 0.78)"/>
-      <stop offset="100%" stop-color="rgba(57, 246, 202, 0.0)"/>
+    <linearGradient id="metricFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(32,30,30,0.98)"/>
+      <stop offset="100%" stop-color="rgba(27,25,25,0.98)"/>
     </linearGradient>
-    <linearGradient id="statFillGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(6, 22, 37, 0.60)"/>
-      <stop offset="100%" stop-color="rgba(5, 18, 31, 0.50)"/>
-    </linearGradient>
-    <linearGradient id="metaFillGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="rgba(6, 22, 37, 0.52)"/>
-      <stop offset="100%" stop-color="rgba(5, 18, 31, 0.42)"/>
+    <linearGradient id="metricPrimaryFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(37,34,34,1)"/>
+      <stop offset="100%" stop-color="rgba(31,29,29,1)"/>
     </linearGradient>
   </defs>
 
-  ${
-    icons.bgImage
-      ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`
-      : `<rect width="${width}" height="${height}" fill="url(#bgFallbackGrad)"/>`
-  }
-  ${
-    icons.bgImage
-      ? `<image href="${icons.bgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" clip-path="url(#panelClip)" opacity="0.78"/>`
-      : ""
-  }
-  <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="26" fill="url(#panelGrad)" stroke="rgba(130, 188, 230, 0.34)" stroke-width="3"/>
-  <rect x="${panelX + 8}" y="${panelY + 4}" width="${panelW - 16}" height="2" rx="1" fill="url(#panelTopLine)"/>
-  ${decorMarkup}
+  <rect width="${width}" height="${height}" fill="url(#bgFallbackGrad)"/>
+  <rect width="${width}" height="${height}" fill="rgba(8,8,8,0.72)"/>
+  <rect x="${panelX}" y="${panelY}" width="${panelW}" height="${panelH}" rx="0" fill="url(#panelGrad)" stroke="rgba(73,72,71,0.38)" stroke-width="1.2"/>
+  <rect x="${panelX}" y="${panelY}" width="2" height="164" fill="#dfff00"/>
+  <rect x="${panelX + 1}" y="${panelY}" width="${panelW - 2}" height="1" fill="rgba(255,255,255,0.02)"/>
+  <g opacity="0.18">
+    <line x1="${panelX + 320}" y1="${panelY}" x2="${panelX + 320}" y2="${panelY + panelH}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <line x1="${panelX + 640}" y1="${panelY}" x2="${panelX + 640}" y2="${panelY + panelH}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    <line x1="${panelX + 960}" y1="${panelY}" x2="${panelX + 960}" y2="${panelY + panelH}" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    <line x1="${panelX}" y1="${panelY + 128}" x2="${panelX + panelW}" y2="${panelY + 128}" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  </g>
 
+  <rect x="${innerX}" y="${chipY}" width="156" height="28" fill="rgba(0,0,0,0.7)" stroke="rgba(223,255,0,0.18)" stroke-width="1"/>
+  <text x="${innerX + 12}" y="${chipY + 18}" fill="#dfff00" font-size="11" font-family="Noto Sans Mono, monospace" letter-spacing="2.6">WALLET_NODE.JSON</text>
   ${avatarMarkup}
 
-  <text x="${leftPad + 118}" y="${topPad + 40}" fill="#edf7ff" font-size="56" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
+  <text x="${heroTextX}" y="${heroY + 28}" fill="#ffffff" font-size="56" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
     safeDisplayName,
   )}</text>
-  <text x="${leftPad + 118}" y="${topPad + 88}" fill="#9eb8d1" font-size="22" font-family="Noto Sans Mono, monospace">${escapeXml(
-    `(${payload.shortWallet})`,
+  <text x="${heroTextX}" y="${heroY + 58}" fill="#8d8a8a" font-size="18" font-family="Noto Sans Mono, monospace" letter-spacing="2.4">${escapeXml(
+    payload.shortWallet,
   )}</text>
 
-  <rect x="${summaryPillX}" y="${summaryPillY}" width="${summaryPillW}" height="66" rx="33" fill="${summaryPalette.fill}" stroke="${summaryPalette.stroke}" stroke-width="2.5"/>
-  <text x="${summaryPillX + summaryPillW / 2}" y="${summaryPillY + 44}" text-anchor="middle" fill="${summaryPalette.text}" font-size="32" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
+  <rect x="${summaryPillX}" y="${summaryPillY}" width="${summaryPillW}" height="44" fill="rgba(223,255,0,0.08)" stroke="rgba(223,255,0,0.18)" stroke-width="1"/>
+  <text x="${summaryPillX + 16}" y="${summaryPillY + 28}" fill="#f6ffc0" font-size="21" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
     summaryLabel,
   )}</text>
 
-  ${statCard(panelX + 36, statY, "KEY SPEND", payload.keySpendEth, icons.keyIcon, "key")}
-  ${statCard(panelX + 36 + (statW + statGap), statY, "WEEKLY CLAIMS", payload.weeklyClaimsEth)}
-  ${statCard(
-    panelX + 36 + (statW + statGap) * 2,
-    statY,
-    "JACKPOT CLAIMS",
-    payload.jackpotClaimsEth,
-    icons.jackpotIcon,
-    "jackpot",
-  )}
-  ${statCard(panelX + 36 + (statW + statGap) * 3, statY, "TOTAL CLAIMS", payload.totalClaimsEth)}
+  ${metricCard(panelX + 18, "TOTAL REWARDS", payload.totalClaimsEth, "", { primary: true, meter: true })}
+  ${metricCard(panelX + 18 + (cardW + cardGap), "KEY SPEND", payload.keySpendEth, `Keys bought: ${payload.keysBought}`)}
+  ${metricCard(panelX + 18 + (cardW + cardGap) * 2, "WEEKLY CLAIMS", payload.weeklyClaimsEth, `Weekly events: ${payload.weeklyEvents}`)}
+  ${metricCard(panelX + 18 + (cardW + cardGap) * 3, "JACKPOT CLAIMS", payload.jackpotClaimsEth, `Jackpot events: ${payload.jackpotEvents}`)}
 
-  ${metaCard(panelX + 36, metaY1, `Keys bought: ${payload.keysBought}`)}
-  ${metaCard(panelX + 36 + metaW + statGap, metaY1, `Purchase events: ${payload.purchaseEvents}`)}
-  ${metaCard(panelX + 36, metaY2, `Weekly events: ${payload.weeklyEvents}`)}
-  ${metaCard(panelX + 36 + metaW + statGap, metaY2, `Jackpot events: ${payload.jackpotEvents}`)}
+  <rect x="${panelX + 18}" y="${metaY}" width="${purchaseMetaW}" height="${metaH}" fill="rgba(20,20,20,0.96)"/>
+  <rect x="${panelX + 18 + purchaseMetaW + 1}" y="${metaY}" width="${panelW - 37 - purchaseMetaW}" height="${metaH}" fill="rgba(20,20,20,0.96)"/>
+  <text x="${panelX + 34}" y="${metaY + 25}" fill="#8d8a8a" font-size="13" font-family="Noto Sans Mono, monospace" letter-spacing="2.2">PURCHASE EVENTS: ${escapeXml(
+    payload.purchaseEvents,
+  )}</text>
+  <text x="${panelX + 18 + purchaseMetaW + 22}" y="${metaY + 25}" fill="#8d8a8a" font-size="13" font-family="Noto Sans Mono, monospace" letter-spacing="2.2">WEEKLY/JACKPOT EVENTS: ${escapeXml(
+    `${payload.weeklyEvents}/${payload.jackpotEvents}`,
+  )}</text>
+
+  <rect x="${panelX + 18}" y="${logPanelY}" width="${panelW - 36}" height="${logPanelH}" fill="rgba(0,0,0,0.82)" stroke="rgba(73,72,71,0.24)" stroke-width="1"/>
+  <rect x="${panelX + 18}" y="${logPanelY}" width="${panelW - 36}" height="1" fill="rgba(255,255,255,0.03)"/>
+  <text x="${panelX + 32}" y="${logPanelY + 22}" fill="#dfff00" font-size="11" font-family="Noto Sans Mono, monospace" letter-spacing="2.8">SYSTEM_LOGS_V2.0.4</text>
+  <circle cx="${panelX + panelW - 42}" cy="${logPanelY + 18}" r="3" fill="#dfff00"/>
+  <circle cx="${panelX + panelW - 58}" cy="${logPanelY + 18}" r="3" fill="rgba(255,255,255,0.18)"/>
+  <circle cx="${panelX + panelW - 74}" cy="${logPanelY + 18}" r="3" fill="rgba(255,255,255,0.18)"/>
+  <line x1="${panelX + 18}" y1="${logPanelY + 30}" x2="${panelX + panelW - 18}" y2="${logPanelY + 30}" stroke="rgba(73,72,71,0.22)" stroke-width="1"/>
+  <text x="${panelX + 26}" y="${logPanelY + 54}" fill="#8d8a8a" font-size="11" font-family="Noto Sans Mono, monospace">[WALLET]</text>
+  <text x="${panelX + 120}" y="${logPanelY + 54}" fill="#dfff00" font-size="11" font-family="Noto Sans Mono, monospace">${escapeXml(
+    `${safeDisplayName} // ${payload.shortWallet}`,
+  )}</text>
+  <text x="${panelX + 26}" y="${logPanelY + 76}" fill="#8d8a8a" font-size="11" font-family="Noto Sans Mono, monospace">[CLAIMS]</text>
+  <text x="${panelX + 120}" y="${logPanelY + 76}" fill="#ffffff" font-size="11" font-family="Noto Sans Mono, monospace">${escapeXml(
+    `TOTAL ${payload.totalClaimsEth} ETH // WEEKLY ${payload.weeklyClaimsEth} ETH // JACKPOT ${payload.jackpotClaimsEth} ETH`,
+  )}</text>
+  <text x="${panelX + 26}" y="${logPanelY + 98}" fill="#8d8a8a" font-size="11" font-family="Noto Sans Mono, monospace">[KEYS]</text>
+  <text x="${panelX + 120}" y="${logPanelY + 98}" fill="#ffffff" font-size="11" font-family="Noto Sans Mono, monospace">${escapeXml(
+    `SPEND ${payload.keySpendEth} ETH // BOUGHT ${payload.keysBought} // EVENTS ${payload.purchaseEvents}`,
+  )}</text>
+
+  ${decorMarkup}
 </svg>
 `;
 };

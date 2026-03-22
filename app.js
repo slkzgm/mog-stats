@@ -3,15 +3,18 @@ const walletInput = document.querySelector("#wallet-input");
 const statusEl = document.querySelector("#status");
 const card = document.querySelector("#stats-card");
 const suggestionsEl = document.querySelector("#suggestions");
-const walletView = document.querySelector("#wallet-view");
-const globalView = document.querySelector("#global-view");
-const walletViewBtn = document.querySelector("#view-wallet-btn");
-const globalViewBtn = document.querySelector("#view-global-btn");
+const statsView = document.querySelector("#stats-view");
+const leaderboardView = document.querySelector("#leaderboard-view");
+const statsViewBtn = document.querySelector("#view-stats-btn");
+const leaderboardViewBtn = document.querySelector("#view-leaderboard-btn");
+const backToStatsBtn = document.querySelector("#back-to-stats-btn");
 
 const walletTitle = document.querySelector("#wallet-title");
 const walletSubtitle = document.querySelector("#wallet-subtitle");
 const profileAvatar = document.querySelector("#profile-avatar");
 const netPill = document.querySelector("#net-pill");
+const projectedWeekPill = document.querySelector("#projected-week-pill");
+const walletLogLines = document.querySelector("#wallet-log-lines");
 
 const keysEth = document.querySelector("#keys-eth");
 const weeklyEth = document.querySelector("#weekly-eth");
@@ -29,8 +32,8 @@ const includeCurrentWeekCheckbox = document.querySelector("#include-current-week
 const projectedWeekNote = document.querySelector("#projected-week-note");
 const includeCurrentWeekGlobalCheckbox = document.querySelector("#include-current-week-global");
 const globalProjectedWeekNote = document.querySelector("#global-projected-week-note");
-const globalStatus = document.querySelector("#global-status");
-const globalCard = document.querySelector("#global-card");
+const homeGlobalStatus = document.querySelector("#home-global-status");
+const homeGlobalCard = document.querySelector("#home-global-card");
 const globalPlayers = document.querySelector("#g-players");
 const globalKeys = document.querySelector("#g-keys");
 const globalKeySpend = document.querySelector("#g-key-spend");
@@ -39,8 +42,11 @@ const globalWeeklyClaims = document.querySelector("#g-weekly-claims");
 const globalJackpotClaims = document.querySelector("#g-jackpot-claims");
 const globalTeamRevenue = document.querySelector("#g-team-revenue");
 const globalClaimEvents = document.querySelector("#g-claim-events");
+const leaderboardStatus = document.querySelector("#leaderboard-status");
+const leaderboardCard = document.querySelector("#leaderboard-card");
 const leaderboardCount = document.querySelector("#leaderboard-count");
 const leaderboardBody = document.querySelector("#leaderboard-body");
+const leaderboardMeta = document.querySelector("#leaderboard-meta");
 
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const WEI_IN_ETH = 10n ** 18n;
@@ -49,6 +55,8 @@ const SEARCH_DEBOUNCE_MS = 180;
 const COPY_SOUND_URL = "/assets/copy.mp3";
 const DECOR_GHOST_FALLBACK = "/assets/ghost.gif";
 const DEFAULT_GLOBAL_LEADERBOARD_LIMIT = 100;
+const LOG_TYPING_INTERVAL_MS = 14;
+const LOG_LINE_STAGGER_MS = 120;
 
 let selectedProfile = null;
 let lastSearchToken = 0;
@@ -62,9 +70,11 @@ let decorGifOptions = [];
 let selectedDecorGif = "";
 let includeCurrentWeekProjected = false;
 let includeGlobalCurrentWeekProjected = false;
-let currentView = "wallet";
-let globalLoaded = false;
-let globalLoadedProjectionMode = false;
+let currentView = "stats";
+let overviewLoaded = false;
+let overviewLoadedProjectionMode = false;
+let logAnimationToken = 0;
+let logAnimationTimers = [];
 
 const toTeamRevenueWei = (keySpendWei) => (keySpendWei * TEAM_REVENUE_BPS) / 10_000n;
 
@@ -114,32 +124,139 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function setCurrentView(view, options = {}) {
-  const next = view === "global" ? "global" : "wallet";
-  currentView = next;
-  const isGlobal = next === "global";
+function formatTimestamp(value) {
+  const date = new Date(value || "");
+  if (Number.isNaN(date.getTime())) return "timestamp unavailable";
 
-  walletView.classList.toggle("hidden", isGlobal);
-  globalView.classList.toggle("hidden", !isGlobal);
-  walletViewBtn.classList.toggle("is-active", !isGlobal);
-  globalViewBtn.classList.toggle("is-active", isGlobal);
-  if (isGlobal) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function prefersReducedMotion() {
+  return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+}
+
+function clearLogAnimation() {
+  logAnimationToken += 1;
+  for (const timer of logAnimationTimers) {
+    clearTimeout(timer);
+  }
+  logAnimationTimers = [];
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, ms);
+    logAnimationTimers.push(timer);
+  });
+}
+
+async function typeLogMessage(node, message, token) {
+  for (let index = 0; index <= message.length; index += 1) {
+    if (token !== logAnimationToken) return;
+    node.textContent = message.slice(0, index);
+    if (index < message.length) {
+      await delay(LOG_TYPING_INTERVAL_MS);
+    }
+  }
+}
+
+async function animateWalletLogs(lines, token) {
+  const rows = [...walletLogLines.querySelectorAll(".log-row")];
+  for (let index = 0; index < rows.length; index += 1) {
+    if (token !== logAnimationToken) return;
+    const row = rows[index];
+    const message = row.querySelector(".log-message");
+    if (!message) continue;
+
+    row.classList.add("is-visible");
+    message.classList.add("is-typing");
+    await typeLogMessage(message, lines[index].message, token);
+    if (token !== logAnimationToken) return;
+    message.classList.remove("is-typing");
+    await delay(LOG_LINE_STAGGER_MS);
+  }
+}
+
+function renderWalletLogs(lines, options = {}) {
+  if (!walletLogLines) return;
+  clearLogAnimation();
+
+  const animate = options.animate !== false && !prefersReducedMotion();
+
+  walletLogLines.innerHTML = lines
+    .map(
+      (line) => `
+        <div class="log-row${animate ? "" : " is-visible"}">
+          <span class="log-time">${escapeHtml(line.time)}</span>
+          <span class="log-message${line.accent ? " log-message-accent" : ""}">${animate ? "" : escapeHtml(line.message)}</span>
+        </div>
+      `,
+    )
+    .join("");
+
+  if (animate) {
+    const token = logAnimationToken;
+    void animateWalletLogs(lines, token);
+  }
+}
+
+function setProjectionModeLabel(enabled) {
+  if (!projectedWeekPill) return;
+  projectedWeekPill.textContent = enabled ? "Projection mode: current week included" : "Projection mode: disabled";
+}
+
+function renderDefaultLogs() {
+  renderWalletLogs([
+    { time: "[boot]", message: "SYSTEM IDLE. AWAITING USER INPUT.", accent: true },
+    { time: "[hint]", message: "Search by Abstract username or wallet address.", accent: false },
+  ], { animate: true });
+}
+
+function setCurrentView(view, options = {}) {
+  const next = view === "leaderboard" ? "leaderboard" : view === "wallet" ? "wallet" : "stats";
+  currentView = next;
+  const isLeaderboard = next === "leaderboard";
+  const isWallet = next === "wallet";
+
+  statsView.classList.toggle("hidden", isLeaderboard);
+  leaderboardView.classList.toggle("hidden", !isLeaderboard);
+  card.classList.toggle("hidden", !isWallet);
+  backToStatsBtn.classList.toggle("hidden", !isWallet);
+  statsViewBtn.classList.toggle("is-active", !isLeaderboard);
+  leaderboardViewBtn.classList.toggle("is-active", isLeaderboard);
+
+  if (isWallet) {
+    homeGlobalCard.classList.add("hidden");
+  } else if (overviewLoaded) {
+    homeGlobalCard.classList.remove("hidden");
+  }
+
+  if (isLeaderboard) {
     statusEl.textContent = "";
     clearSuggestions();
   } else {
-    globalStatus.textContent = "";
+    leaderboardStatus.textContent = "";
+    if (!isWallet) {
+      statusEl.textContent = "";
+      renderDefaultLogs();
+      showShareStatus("");
+    }
   }
 
   const shouldSyncUrl = options.syncUrl !== false;
   if (shouldSyncUrl) {
     const url = new URL(window.location.href);
     url.searchParams.set("view", next);
-    if (next !== "wallet") {
+    if (next !== "wallet" || !WALLET_REGEX.test(currentWallet)) {
       url.searchParams.delete("wallet");
-    } else if (WALLET_REGEX.test(currentWallet)) {
-      url.searchParams.set("wallet", currentWallet);
     } else {
-      url.searchParams.delete("wallet");
+      url.searchParams.set("wallet", currentWallet);
     }
     window.history.replaceState({}, "", url.toString());
   }
@@ -151,6 +268,8 @@ function showError(message) {
   currentCardData = null;
   projectedWeekNote.textContent = "";
   projectedWeekNote.classList.add("hidden");
+  setProjectionModeLabel(includeCurrentWeekProjected);
+  renderWalletLogs([{ time: "[error]", message: message, accent: true }], { animate: true });
   showShareStatus("");
 }
 
@@ -158,25 +277,37 @@ function showShareStatus(message) {
   shareStatus.textContent = message;
 }
 
-function showGlobalError(message) {
-  globalStatus.textContent = message;
-  globalCard.classList.add("hidden");
+function showOverviewError(message, targetView = currentView) {
+  if (targetView === "leaderboard") {
+    leaderboardStatus.textContent = message;
+    leaderboardCard.classList.add("hidden");
+  } else {
+    homeGlobalStatus.textContent = message;
+    homeGlobalCard.classList.add("hidden");
+  }
+
+  if (leaderboardMeta) {
+    leaderboardMeta.textContent = targetView === "leaderboard" ? "Leaderboard data unavailable." : "Overview unavailable.";
+  }
 }
 
 function renderLeaderboardRows(rows) {
   const sortedRows = [...rows].sort((left, right) => {
+    const claimDiff = parseWei(right.totalClaimAmount) - parseWei(left.totalClaimAmount);
+    if (claimDiff !== 0n) return claimDiff > 0n ? 1 : -1;
+
     const revenueDiff = toTeamRevenueWei(parseWei(right.keyPurchaseAmount)) - toTeamRevenueWei(parseWei(left.keyPurchaseAmount));
     if (revenueDiff !== 0n) return revenueDiff > 0n ? 1 : -1;
-
-    const claimsDiff = parseWei(right.totalClaimAmount) - parseWei(left.totalClaimAmount);
-    if (claimsDiff !== 0n) return claimsDiff > 0n ? 1 : -1;
 
     return String(left.wallet || "").localeCompare(String(right.wallet || ""));
   });
 
   if (!sortedRows.length) {
-    leaderboardBody.innerHTML = `<tr><td colspan="5">No player rows available yet.</td></tr>`;
-    leaderboardCount.textContent = "0 players";
+    leaderboardBody.innerHTML = `<tr class="leaderboard-row"><td colspan="3">No player rows available yet.</td></tr>`;
+    leaderboardCount.textContent = "0 wallets";
+    if (leaderboardMeta) {
+      leaderboardMeta.textContent = "No indexed wallets available yet.";
+    }
     return;
   }
 
@@ -186,50 +317,65 @@ function renderLeaderboardRows(rows) {
       const teamRevenue = toTeamRevenueWei(parseWei(row.keyPurchaseAmount));
       const totalClaims = parseWei(row.totalClaimAmount);
       const keySpend = parseWei(row.keyPurchaseAmount);
+      const weeklyClaims = parseWei(row.weeklyClaimAmount);
+      const jackpotClaims = parseWei(row.jackpotClaimAmount);
       const walletLabel = WALLET_REGEX.test(wallet) ? shortAddress(wallet) : wallet;
       const profileName = typeof row.profileName === "string" ? row.profileName.trim() : "";
       const profileImage = typeof row.profileImageUrl === "string" ? row.profileImageUrl.trim() : "";
       const displayName = profileName || walletLabel;
-      const displayNameSafe = escapeHtml(displayName.length > 22 ? `${displayName.slice(0, 21)}...` : displayName);
+      const displayNameSafe = escapeHtml(displayName.length > 24 ? `${displayName.slice(0, 23)}...` : displayName);
       const walletLabelSafe = escapeHtml(walletLabel);
       const walletSafe = escapeHtml(wallet);
       const avatarFallback = escapeHtml((displayName.charAt(0) || "?").toUpperCase());
       const avatarMarkup = profileImage
         ? `<img class="leaderboard-avatar" src="${escapeHtml(profileImage)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
         : `<span class="leaderboard-avatar leaderboard-avatar-fallback">${avatarFallback}</span>`;
-      const subtitleMarkup = profileName
-        ? `<span class="leaderboard-player-address">${walletLabelSafe}</span>`
-        : "";
+      const titleTag =
+        index === 0
+          ? "Legendary"
+          : index === 1
+            ? "Elite"
+            : index === 2
+              ? "Top_3"
+              : "";
+      const titleTagMarkup = titleTag ? `<span class="leaderboard-tag">${escapeHtml(titleTag)}</span>` : "";
 
       return `
-        <tr>
-          <td>${index + 1}</td>
+        <tr class="leaderboard-row" style="--row-index:${index}">
+          <td>
+            <span class="leaderboard-rank">
+              <span class="leaderboard-rank-badge">${String(index + 1).padStart(2, "0")}</span>
+            </span>
+          </td>
           <td>
             <button class="leaderboard-wallet-btn" type="button" data-wallet="${walletSafe}">
               <span class="leaderboard-player">
                 ${avatarMarkup}
                 <span class="leaderboard-player-meta">
                   <span class="leaderboard-player-name">${displayNameSafe}</span>
-                  ${subtitleMarkup}
+                  <span class="leaderboard-player-address">${walletLabelSafe}</span>
+                  <span class="leaderboard-player-submeta">Spend ${formatEth(keySpend)} ETH // Revenue ${formatEth(teamRevenue)} ETH</span>
                 </span>
               </span>
+              ${titleTagMarkup}
             </button>
           </td>
-          <td>${formatEth(teamRevenue)} ETH</td>
-          <td>${formatEth(totalClaims)} ETH</td>
-          <td>${formatEth(keySpend)} ETH</td>
+          <td>
+            <span class="leaderboard-value">${formatEth(totalClaims)} ETH</span>
+            <span class="leaderboard-value-sub">Weekly ${formatEth(weeklyClaims)} ETH // Jackpot ${formatEth(jackpotClaims)} ETH</span>
+          </td>
         </tr>
       `;
     })
     .join("");
 
-  leaderboardCount.textContent = `${sortedRows.length} players`;
+  leaderboardCount.textContent = `${sortedRows.length} wallets`;
 }
 
 function renderGlobalStats(payload) {
   const global = payload?.global;
   if (!global) {
-    showGlobalError("Global stats are not available yet.");
+    showOverviewError("Global stats are not available yet.", "stats");
     return;
   }
 
@@ -253,6 +399,9 @@ function renderGlobalStats(payload) {
   globalJackpotClaims.textContent = `${formatEth(jackpotClaimsWei)} ETH`;
   globalClaimEvents.textContent = formatInt(parseWei(global.weeklyClaimEvents) + parseWei(global.jackpotClaimEvents));
   globalTeamRevenue.textContent = `${formatEth(teamRevenueWei)} ETH`;
+  if (leaderboardMeta) {
+    leaderboardMeta.textContent = `Updated ${formatTimestamp(global.updatedAtTimestamp)} // sorted by total claims`;
+  }
 
   if (includeGlobalCurrentWeekProjected) {
     const weekNumber = payload?.currentWeekGlobalProjection?.weekNumber ?? "?";
@@ -267,16 +416,23 @@ function renderGlobalStats(payload) {
     globalProjectedWeekNote.classList.add("hidden");
   }
 
-  renderLeaderboardRows(payload.leaderboard || []);
-  globalStatus.textContent = "";
-  globalCard.classList.remove("hidden");
+  homeGlobalStatus.textContent = "";
+  homeGlobalCard.classList.remove("hidden");
 }
 
-async function loadGlobalStats(force = false) {
-  if (globalLoaded && globalLoadedProjectionMode === includeGlobalCurrentWeekProjected && !force) return;
+function renderLeaderboard(payload) {
+  renderLeaderboardRows(payload?.leaderboard || []);
+  leaderboardStatus.textContent = "";
+  leaderboardCard.classList.remove("hidden");
+}
 
-  globalStatus.textContent = "Loading global stats...";
-  globalCard.classList.add("hidden");
+async function loadOverviewData(force = false) {
+  if (overviewLoaded && overviewLoadedProjectionMode === includeGlobalCurrentWeekProjected && !force) return;
+
+  homeGlobalStatus.textContent = "Loading global stats...";
+  homeGlobalCard.classList.add("hidden");
+  leaderboardStatus.textContent = "Loading leaderboard...";
+  leaderboardCard.classList.add("hidden");
   const includeProjected = includeGlobalCurrentWeekProjected ? "&includeCurrentWeekProjected=1" : "";
   const response = await fetch(`/api/global-stats?limit=${DEFAULT_GLOBAL_LEADERBOARD_LIMIT}${includeProjected}`);
   const payload = await response.json();
@@ -287,8 +443,9 @@ async function loadGlobalStats(force = false) {
 
   const hasGlobal = Boolean(payload?.global);
   renderGlobalStats(payload);
-  globalLoaded = hasGlobal;
-  globalLoadedProjectionMode = includeGlobalCurrentWeekProjected;
+  renderLeaderboard(payload);
+  overviewLoaded = hasGlobal;
+  overviewLoadedProjectionMode = includeGlobalCurrentWeekProjected;
 }
 
 function pickRandomItem(items) {
@@ -504,7 +661,7 @@ function setProfileIdentity(wallet, profile) {
   const avatar = profile?.image?.trim();
 
   walletTitle.textContent = `${displayName}`;
-  walletSubtitle.textContent = profileName ? `(${shortAddress(wallet)})` : "";
+  walletSubtitle.textContent = shortAddress(wallet);
 
   if (avatar) {
     profileAvatar.src = `/api/avatar?url=${encodeURIComponent(avatar)}`;
@@ -643,7 +800,7 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
 
   totalEth.textContent = `${totalClaimsEth} ETH`;
 
-  netPill.textContent = `Total rewards ${totalClaimsEth} ETH`;
+  netPill.textContent = `TOTAL REWARDS ${totalClaimsEth} ETH`;
 
   const keysPurchased = BigInt(stats.keysPurchased).toString();
   const keyPurchaseEvents = BigInt(stats.keyPurchaseEvents).toString();
@@ -654,6 +811,7 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
   keysEvents.textContent = `Purchase events: ${keyPurchaseEvents}`;
   weeklyEvents.textContent = `Weekly events: ${weeklyClaimEvents}`;
   jackpotEvents.textContent = `Jackpot events: ${jackpotClaimEvents}`;
+  setProjectionModeLabel(includeProjection);
 
   if (includeProjection) {
     const weekNumber = currentWeekProjected?.weekNumber ?? "?";
@@ -668,6 +826,20 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
     projectedWeekNote.textContent = "";
     projectedWeekNote.classList.add("hidden");
   }
+
+  const projectionLogMessage = includeProjection
+    ? currentWeekProjected
+      ? `Week ${currentWeekProjected.weekNumber} projection included (+${formatEth(projectedWeekPayoutWei)} ETH).`
+      : projectionError || "Projection requested but unavailable."
+    : "Projection disabled.";
+
+  renderWalletLogs([
+    { time: "[wallet]", message: `${displayName} // ${shortWalletValue}`, accent: true },
+    { time: "[claims]", message: `Total ${totalClaimsEth} ETH // Weekly ${weeklyClaimEth} ETH // Jackpot ${jackpotClaimEth} ETH` },
+    { time: "[keys]", message: `Spend ${keyPurchaseEth} ETH // Bought ${keysPurchased} // Events ${keyPurchaseEvents}` },
+    { time: "[sync]", message: `Last index update ${formatTimestamp(stats.updatedAtTimestamp)}` },
+    { time: "[mode]", message: projectionLogMessage },
+  ], { animate: true });
 
   statusEl.textContent = "";
   card.classList.remove("hidden");
@@ -693,9 +865,14 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
 
 async function loadWalletStats(wallet, profile = null, options = {}) {
   const includeProjection = Boolean(options.includeCurrentWeekProjected ?? includeCurrentWeekProjected);
-  statusEl.textContent = "Loading...";
+  statusEl.textContent = "Loading wallet stats...";
   card.classList.add("hidden");
   currentCardData = null;
+  setProjectionModeLabel(includeProjection);
+  renderWalletLogs([
+    { time: "[query]", message: `Resolving ${wallet} from indexer...`, accent: true },
+    { time: "[mode]", message: includeProjection ? "Current week projection enabled." : "Projection disabled." },
+  ], { animate: true });
 
   const response = await fetch("/api/player-stats", {
     method: "POST",
@@ -883,25 +1060,37 @@ includeCurrentWeekCheckbox.addEventListener("change", async () => {
 
 includeCurrentWeekGlobalCheckbox.addEventListener("change", async () => {
   includeGlobalCurrentWeekProjected = includeCurrentWeekGlobalCheckbox.checked;
-  if (currentView !== "global") return;
-
   try {
-    await loadGlobalStats(true);
+    await loadOverviewData(true);
   } catch (error) {
-    showGlobalError(error instanceof Error ? error.message : "Global stats unavailable");
+    showOverviewError(error instanceof Error ? error.message : "Global stats unavailable", "stats");
   }
 });
 
-walletViewBtn.addEventListener("click", () => {
-  setCurrentView("wallet");
+statsViewBtn.addEventListener("click", async () => {
+  setCurrentView("stats");
+  try {
+    await loadOverviewData();
+  } catch (error) {
+    showOverviewError(error instanceof Error ? error.message : "Global stats unavailable", "stats");
+  }
 });
 
-globalViewBtn.addEventListener("click", async () => {
-  setCurrentView("global");
+leaderboardViewBtn.addEventListener("click", async () => {
+  setCurrentView("leaderboard");
   try {
-    await loadGlobalStats(true);
+    await loadOverviewData();
   } catch (error) {
-    showGlobalError(error instanceof Error ? error.message : "Global stats unavailable");
+    showOverviewError(error instanceof Error ? error.message : "Leaderboard unavailable", "leaderboard");
+  }
+});
+
+backToStatsBtn.addEventListener("click", async () => {
+  setCurrentView("stats");
+  try {
+    await loadOverviewData();
+  } catch (error) {
+    showOverviewError(error instanceof Error ? error.message : "Global stats unavailable", "stats");
   }
 });
 
@@ -924,28 +1113,34 @@ leaderboardBody.addEventListener("click", async (event) => {
 
 async function bootstrapFromQueryParam() {
   const url = new URL(window.location.href);
-  const view = (url.searchParams.get("view") || "wallet").trim().toLowerCase();
-  if (view === "global") {
-    setCurrentView("global", { syncUrl: false });
+  const view = (url.searchParams.get("view") || "stats").trim().toLowerCase();
+  if (view === "leaderboard") {
+    setCurrentView("leaderboard", { syncUrl: false });
     try {
-      await loadGlobalStats();
+      await loadOverviewData();
     } catch (error) {
-      showGlobalError(error instanceof Error ? error.message : "Global stats unavailable");
+      showOverviewError(error instanceof Error ? error.message : "Leaderboard unavailable", "leaderboard");
     }
     return;
   }
 
-  setCurrentView("wallet", { syncUrl: false });
   const wallet = (url.searchParams.get("wallet") || "").trim().toLowerCase();
-  if (!WALLET_REGEX.test(wallet)) {
+  if (view === "wallet" && WALLET_REGEX.test(wallet)) {
+    setCurrentView("wallet", { syncUrl: false });
+    walletInput.value = wallet;
+    try {
+      await openWalletView(wallet, null);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Unexpected error");
+    }
     return;
   }
 
-  walletInput.value = wallet;
+  setCurrentView("stats", { syncUrl: false });
   try {
-    await openWalletView(wallet, null);
+    await loadOverviewData();
   } catch (error) {
-    showError(error instanceof Error ? error.message : "Unexpected error");
+    showOverviewError(error instanceof Error ? error.message : "Global stats unavailable", "stats");
   }
 }
 
