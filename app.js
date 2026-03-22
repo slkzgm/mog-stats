@@ -11,6 +11,10 @@ const backToStatsBtn = document.querySelector("#back-to-stats-btn");
 const statsHeroTitleMain = document.querySelector("#stats-hero-title-main");
 const statsHeroTitleAccent = document.querySelector("#stats-hero-title-accent");
 const statsHeroCaption = document.querySelector("#stats-hero-caption");
+const leaderboardHeroEyebrow = document.querySelector("#leaderboard-hero-eyebrow");
+const leaderboardHeroTitleMain = document.querySelector("#leaderboard-hero-title-main");
+const leaderboardHeroTitleAccent = document.querySelector("#leaderboard-hero-title-accent");
+const leaderboardHeroDescription = document.querySelector("#leaderboard-hero-description");
 
 const walletTitle = document.querySelector("#wallet-title");
 const walletSubtitle = document.querySelector("#wallet-subtitle");
@@ -97,6 +101,7 @@ let logAnimationToken = 0;
 let logAnimationTimers = [];
 let heroScrambleToken = 0;
 let currentStatsHeroMode = "";
+let currentLeaderboardHeroMode = "";
 
 const toTeamRevenueWei = (keySpendWei) => (keySpendWei * TEAM_REVENUE_BPS) / 10_000n;
 
@@ -346,8 +351,47 @@ function setStatsHeroMode(mode, options = {}) {
   animateScrambleText(statsHeroCaption, target.caption, 4, token);
 }
 
+function setLeaderboardHeroMode(mode = "leaderboard", options = {}) {
+  const nextMode = mode === "leaderboard" ? "leaderboard" : "leaderboard";
+  const target = {
+    eyebrow: "SYSTEM_ACCESS_GRANTED",
+    main: "GLOBAL",
+    accent: "LEADERBOARD",
+    description: "RANKING THE TOP PLAYERS BY ACCUMULATED REWARDS",
+  };
+
+  if (
+    currentLeaderboardHeroMode === nextMode &&
+    !options.force &&
+    leaderboardHeroEyebrow?.textContent === target.eyebrow &&
+    leaderboardHeroTitleMain?.textContent === target.main &&
+    leaderboardHeroTitleAccent?.textContent === target.accent &&
+    leaderboardHeroDescription?.textContent === target.description
+  ) {
+    return;
+  }
+
+  currentLeaderboardHeroMode = nextMode;
+  heroScrambleToken += 1;
+  const token = heroScrambleToken;
+
+  if (options.animate === false) {
+    if (leaderboardHeroEyebrow) leaderboardHeroEyebrow.textContent = target.eyebrow;
+    if (leaderboardHeroTitleMain) leaderboardHeroTitleMain.textContent = target.main;
+    if (leaderboardHeroTitleAccent) leaderboardHeroTitleAccent.textContent = target.accent;
+    if (leaderboardHeroDescription) leaderboardHeroDescription.textContent = target.description;
+    return;
+  }
+
+  animateScrambleText(leaderboardHeroEyebrow, target.eyebrow, 0, token);
+  animateScrambleText(leaderboardHeroTitleMain, target.main, 2, token);
+  animateScrambleText(leaderboardHeroTitleAccent, target.accent, 4, token);
+  animateScrambleText(leaderboardHeroDescription, target.description, 6, token);
+}
+
 function setCurrentView(view, options = {}) {
   const next = view === "leaderboard" ? "leaderboard" : view === "wallet" ? "wallet" : "stats";
+  const previousView = currentView;
   currentView = next;
   document.body.dataset.view = next;
   const isLeaderboard = next === "leaderboard";
@@ -359,7 +403,17 @@ function setCurrentView(view, options = {}) {
   backToStatsBtn.classList.toggle("hidden", !isWallet);
   statsViewBtn.classList.toggle("is-active", !isLeaderboard);
   leaderboardViewBtn.classList.toggle("is-active", isLeaderboard);
-  setStatsHeroMode(isWallet ? "wallet" : "stats", { animate: options.animateHero !== false });
+  if (isLeaderboard) {
+    setLeaderboardHeroMode("leaderboard", {
+      animate: options.animateHero !== false,
+      force: previousView !== next,
+    });
+  } else {
+    setStatsHeroMode(isWallet ? "wallet" : "stats", {
+      animate: options.animateHero !== false,
+      force: previousView !== next,
+    });
+  }
 
   if (isWallet) {
     homeGlobalCard.classList.add("hidden");
@@ -1357,6 +1411,7 @@ async function initializePage() {
   leaderboardPageSize = Number.parseInt(leaderboardPageSizeSelect.value, 10) || DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
   leaderboardOffset = 0;
   setStatsHeroMode("stats", { animate: false, force: true });
+  setLeaderboardHeroMode("leaderboard", { animate: false, force: true });
   await loadDecorGifOptions();
   applyRandomDecorGif();
   await bootstrapFromQueryParam();

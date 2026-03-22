@@ -41,6 +41,15 @@
             ></a
           >
         </div>
+        <div class="topbar-actions">
+          <a
+            class="action-btn action-btn-primary action-btn-topbar"
+            href="https://mog.onchainheroes.xyz/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Play Now</a
+          >
+        </div>
       </div>
     </nav>
 
@@ -59,7 +68,9 @@
                   <p id="stats-hero-caption">PROTOCOL INTERFACE // ARCHIVE ACCESS</p>
                 </div>
               </div>
-              <button id="back-to-stats-btn" type="button" class="back-btn hidden">Back To Stats</button>
+              <div class="hero-actions">
+                <button id="back-to-stats-btn" type="button" class="back-btn hidden">Back To Stats</button>
+              </div>
             </div>
           </header>
 
@@ -79,13 +90,6 @@
                   />
                 </div>
                 <button type="submit" class="action-btn action-btn-primary">Search</button>
-                <a
-                  class="action-btn action-btn-secondary"
-                  href="https://mog.onchainheroes.xyz/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >Play Now</a
-                >
               </div>
 
               <div id="suggestions" class="suggestions hidden" role="listbox" aria-label="Profile suggestions"></div>
@@ -298,14 +302,14 @@
           <header class="hero hero-global">
             <div class="hero-eyebrow">
               <span class="hero-caption-line" aria-hidden="true"></span>
-              <p>SYSTEM_ACCESS_GRANTED</p>
+              <p id="leaderboard-hero-eyebrow">SYSTEM_ACCESS_GRANTED</p>
             </div>
             <h1 class="hero-title hero-title-stacked">
-              <span class="hero-title-main">GLOBAL</span>
-              <span class="hero-title-accent">LEADERBOARD</span>
+              <span id="leaderboard-hero-title-main" class="hero-title-main">GLOBAL</span>
+              <span id="leaderboard-hero-title-accent" class="hero-title-accent">LEADERBOARD</span>
             </h1>
             <p class="hero-description">
-              RANKING THE TOP PLAYERS BY ACCUMULATED REWARDS
+              <span id="leaderboard-hero-description">RANKING THE TOP PLAYERS BY ACCUMULATED REWARDS</span>
               <span class="hero-version">V.2.0.4</span>
             </p>
           </header>
