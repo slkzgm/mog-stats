@@ -44,6 +44,7 @@ const globalTeamRevenue = document.querySelector("#g-team-revenue");
 const globalClaimEvents = document.querySelector("#g-claim-events");
 const leaderboardStatus = document.querySelector("#leaderboard-status");
 const leaderboardCard = document.querySelector("#leaderboard-card");
+const leaderboardPageSizeSelect = document.querySelector("#leaderboard-page-size");
 const leaderboardCount = document.querySelector("#leaderboard-count");
 const leaderboardBody = document.querySelector("#leaderboard-body");
 const leaderboardMeta = document.querySelector("#leaderboard-meta");
@@ -54,7 +55,7 @@ const TEAM_REVENUE_BPS = 1000n;
 const SEARCH_DEBOUNCE_MS = 180;
 const COPY_SOUND_URL = "/assets/copy.mp3";
 const DECOR_GHOST_FALLBACK = "/assets/ghost.gif";
-const DEFAULT_GLOBAL_LEADERBOARD_LIMIT = 100;
+const DEFAULT_GLOBAL_LEADERBOARD_LIMIT = 10;
 const LOG_TYPING_INTERVAL_MS = 14;
 const LOG_LINE_STAGGER_MS = 120;
 
@@ -73,6 +74,8 @@ let includeGlobalCurrentWeekProjected = false;
 let currentView = "stats";
 let overviewLoaded = false;
 let overviewLoadedProjectionMode = false;
+let overviewLoadedLimit = DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
+let leaderboardPageSize = DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
 let logAnimationToken = 0;
 let logAnimationTimers = [];
 
@@ -221,6 +224,7 @@ function renderDefaultLogs() {
 function setCurrentView(view, options = {}) {
   const next = view === "leaderboard" ? "leaderboard" : view === "wallet" ? "wallet" : "stats";
   currentView = next;
+  document.body.dataset.view = next;
   const isLeaderboard = next === "leaderboard";
   const isWallet = next === "wallet";
 
@@ -330,21 +334,23 @@ function renderLeaderboardRows(rows) {
       const avatarMarkup = profileImage
         ? `<img class="leaderboard-avatar" src="${escapeHtml(profileImage)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
         : `<span class="leaderboard-avatar leaderboard-avatar-fallback">${avatarFallback}</span>`;
-      const titleTag =
+      const rankIcon =
         index === 0
-          ? "Legendary"
+          ? `<span class="material-symbols-outlined leaderboard-rank-icon leaderboard-rank-icon-1">workspace_premium</span>`
           : index === 1
-            ? "Elite"
+            ? `<span class="material-symbols-outlined leaderboard-rank-icon leaderboard-rank-icon-2">military_tech</span>`
             : index === 2
-              ? "Top_3"
+              ? `<span class="material-symbols-outlined leaderboard-rank-icon leaderboard-rank-icon-3">military_tech</span>`
               : "";
-      const titleTagMarkup = titleTag ? `<span class="leaderboard-tag">${escapeHtml(titleTag)}</span>` : "";
 
       return `
-        <tr class="leaderboard-row" style="--row-index:${index}">
+        <tr class="leaderboard-row${index < 3 ? ` leaderboard-row-top leaderboard-row-top-${index + 1}` : ""}" style="--row-index:${index}">
           <td>
             <span class="leaderboard-rank">
-              <span class="leaderboard-rank-badge">${String(index + 1).padStart(2, "0")}</span>
+              <span class="leaderboard-rank-badge leaderboard-rank-badge-${index < 3 ? index + 1 : 0}">
+                ${rankIcon}
+                <span>${String(index + 1).padStart(2, "0")}</span>
+              </span>
             </span>
           </td>
           <td>
@@ -352,12 +358,13 @@ function renderLeaderboardRows(rows) {
               <span class="leaderboard-player">
                 ${avatarMarkup}
                 <span class="leaderboard-player-meta">
-                  <span class="leaderboard-player-name">${displayNameSafe}</span>
+                  <span class="leaderboard-player-name-row">
+                    <span class="leaderboard-player-name">${displayNameSafe}</span>
+                  </span>
                   <span class="leaderboard-player-address">${walletLabelSafe}</span>
                   <span class="leaderboard-player-submeta">Spend ${formatEth(keySpend)} ETH // Revenue ${formatEth(teamRevenue)} ETH</span>
                 </span>
               </span>
-              ${titleTagMarkup}
             </button>
           </td>
           <td>
@@ -370,6 +377,9 @@ function renderLeaderboardRows(rows) {
     .join("");
 
   leaderboardCount.textContent = `${sortedRows.length} wallets`;
+  if (leaderboardMeta) {
+    leaderboardMeta.textContent = `SHOWING TOP ${sortedRows.length} ROWS // SORTED BY TOTAL CLAIMS`;
+  }
 }
 
 function renderGlobalStats(payload) {
@@ -399,10 +409,6 @@ function renderGlobalStats(payload) {
   globalJackpotClaims.textContent = `${formatEth(jackpotClaimsWei)} ETH`;
   globalClaimEvents.textContent = formatInt(parseWei(global.weeklyClaimEvents) + parseWei(global.jackpotClaimEvents));
   globalTeamRevenue.textContent = `${formatEth(teamRevenueWei)} ETH`;
-  if (leaderboardMeta) {
-    leaderboardMeta.textContent = `Updated ${formatTimestamp(global.updatedAtTimestamp)} // sorted by total claims`;
-  }
-
   if (includeGlobalCurrentWeekProjected) {
     const weekNumber = payload?.currentWeekGlobalProjection?.weekNumber ?? "?";
     if (payload?.currentWeekGlobalProjectionError && !payload?.currentWeekGlobalProjection) {
@@ -427,14 +433,21 @@ function renderLeaderboard(payload) {
 }
 
 async function loadOverviewData(force = false) {
-  if (overviewLoaded && overviewLoadedProjectionMode === includeGlobalCurrentWeekProjected && !force) return;
+  if (
+    overviewLoaded &&
+    overviewLoadedProjectionMode === includeGlobalCurrentWeekProjected &&
+    overviewLoadedLimit === leaderboardPageSize &&
+    !force
+  ) {
+    return;
+  }
 
   homeGlobalStatus.textContent = "Loading global stats...";
   homeGlobalCard.classList.add("hidden");
   leaderboardStatus.textContent = "Loading leaderboard...";
   leaderboardCard.classList.add("hidden");
   const includeProjected = includeGlobalCurrentWeekProjected ? "&includeCurrentWeekProjected=1" : "";
-  const response = await fetch(`/api/global-stats?limit=${DEFAULT_GLOBAL_LEADERBOARD_LIMIT}${includeProjected}`);
+  const response = await fetch(`/api/global-stats?limit=${leaderboardPageSize}${includeProjected}`);
   const payload = await response.json();
 
   if (!response.ok) {
@@ -446,6 +459,7 @@ async function loadOverviewData(force = false) {
   renderLeaderboard(payload);
   overviewLoaded = hasGlobal;
   overviewLoadedProjectionMode = includeGlobalCurrentWeekProjected;
+  overviewLoadedLimit = leaderboardPageSize;
 }
 
 function pickRandomItem(items) {
@@ -1067,6 +1081,15 @@ includeCurrentWeekGlobalCheckbox.addEventListener("change", async () => {
   }
 });
 
+leaderboardPageSizeSelect.addEventListener("change", async () => {
+  leaderboardPageSize = Number.parseInt(leaderboardPageSizeSelect.value, 10) || DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
+  try {
+    await loadOverviewData(true);
+  } catch (error) {
+    showOverviewError(error instanceof Error ? error.message : "Leaderboard unavailable", currentView === "leaderboard" ? "leaderboard" : "stats");
+  }
+});
+
 statsViewBtn.addEventListener("click", async () => {
   setCurrentView("stats");
   try {
@@ -1147,6 +1170,7 @@ async function bootstrapFromQueryParam() {
 async function initializePage() {
   includeCurrentWeekProjected = Boolean(includeCurrentWeekCheckbox.checked);
   includeGlobalCurrentWeekProjected = Boolean(includeCurrentWeekGlobalCheckbox.checked);
+  leaderboardPageSize = Number.parseInt(leaderboardPageSizeSelect.value, 10) || DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
   await loadDecorGifOptions();
   applyRandomDecorGif();
   await bootstrapFromQueryParam();

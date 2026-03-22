@@ -14,6 +14,10 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -228,7 +232,8 @@
             <span class="hero-title-accent">LEADERBOARD</span>
           </h1>
           <p class="hero-description">
-            Ranking top indexed players by total claims and network-wide activity.
+            RANKING THE TOP HEROES BY ACCUMULATED REWARDS
+            <span class="hero-version">V.2.0.4</span>
           </p>
         </header>
 
@@ -253,9 +258,18 @@
             <div class="leaderboard-footer">
               <div class="leaderboard-footer-actions">
                 <button type="button" class="table-btn table-btn-muted" disabled>Previous_Batch</button>
-                <button type="button" class="table-btn">Top_Batch</button>
+                <button type="button" class="table-btn">Next_Batch</button>
               </div>
               <div class="leaderboard-footer-meta">
+                <label class="leaderboard-page-size" for="leaderboard-page-size">
+                  Rows
+                  <select id="leaderboard-page-size">
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </label>
                 <span id="leaderboard-count" class="leaderboard-count">-</span>
                 <span id="leaderboard-meta">Showing indexed leaderboard results.</span>
               </div>
