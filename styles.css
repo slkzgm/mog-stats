@@ -523,7 +523,7 @@ button:not(.view-btn):not(.leaderboard-wallet-btn):active {
 }
 
 .global-team-revenue {
-  color: var(--accent-2);
+  color: var(--text);
 }
 
 .leaderboard-wrap {
