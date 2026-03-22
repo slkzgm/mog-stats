@@ -216,9 +216,16 @@ button {
   animation: viewFade 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+.page-header-shell {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 334px;
+}
+
 .hero {
-  margin-bottom: 8px;
-  min-height: 236px;
+  margin: 0;
 }
 
 .hero-toolbar {
@@ -1356,7 +1363,7 @@ button {
     align-items: flex-start;
   }
 
-  .hero {
+  .page-header-shell {
     min-height: 0;
   }
 

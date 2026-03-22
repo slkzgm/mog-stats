@@ -36,55 +36,57 @@
 
     <main class="page-shell">
       <section id="stats-view" class="view-page">
-        <header class="hero hero-stats">
-          <div class="hero-toolbar">
-            <div>
-              <h1 class="hero-title">
-                <span class="hero-title-main">SYSTEM_</span>
-                <span class="hero-title-accent">STATS</span>
-              </h1>
-              <div class="hero-caption">
-                <span class="hero-caption-line" aria-hidden="true"></span>
-                <p>PROTOCOL INTERFACE // ARCHIVE ACCESS</p>
+        <div class="page-header-shell page-header-shell-stats">
+          <header class="hero hero-stats">
+            <div class="hero-toolbar">
+              <div>
+                <h1 class="hero-title">
+                  <span class="hero-title-main">SYSTEM_</span>
+                  <span class="hero-title-accent">STATS</span>
+                </h1>
+                <div class="hero-caption">
+                  <span class="hero-caption-line" aria-hidden="true"></span>
+                  <p>PROTOCOL INTERFACE // ARCHIVE ACCESS</p>
+                </div>
               </div>
+              <button id="back-to-stats-btn" type="button" class="back-btn hidden">Back To Stats</button>
             </div>
-            <button id="back-to-stats-btn" type="button" class="back-btn hidden">Back To Stats</button>
-          </div>
-        </header>
+          </header>
 
-        <section class="terminal-panel search-panel">
-          <form id="wallet-form" class="wallet-form" autocomplete="off">
-            <label class="terminal-label" for="wallet-input">Enter_Wallet_Address_Or_ID</label>
-            <div class="input-row">
-              <div class="input-shell">
-                <span class="input-hash" aria-hidden="true">#</span>
-                <input
-                  id="wallet-input"
-                  name="wallet"
-                  type="text"
-                  placeholder="0x... or @username"
-                  spellcheck="false"
-                  required
-                />
+          <section class="terminal-panel search-panel">
+            <form id="wallet-form" class="wallet-form" autocomplete="off">
+              <label class="terminal-label" for="wallet-input">Enter_Wallet_Address_Or_ID</label>
+              <div class="input-row">
+                <div class="input-shell">
+                  <span class="input-hash" aria-hidden="true">#</span>
+                  <input
+                    id="wallet-input"
+                    name="wallet"
+                    type="text"
+                    placeholder="0x... or @username"
+                    spellcheck="false"
+                    required
+                  />
+                </div>
+                <button type="submit" class="action-btn action-btn-primary">Search</button>
+                <a
+                  class="action-btn action-btn-secondary"
+                  href="https://mog.onchainheroes.xyz/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Play Now</a
+                >
               </div>
-              <button type="submit" class="action-btn action-btn-primary">Search</button>
-              <a
-                class="action-btn action-btn-secondary"
-                href="https://mog.onchainheroes.xyz/"
-                target="_blank"
-                rel="noopener noreferrer"
-                >Play Now</a
-              >
-            </div>
 
-            <div id="suggestions" class="suggestions hidden" role="listbox" aria-label="Profile suggestions"></div>
+              <div id="suggestions" class="suggestions hidden" role="listbox" aria-label="Profile suggestions"></div>
 
-            <label class="projection-toggle" for="include-current-week">
-              <input id="include-current-week" type="checkbox" />
-              Include current week projected payout (estimate)
-            </label>
-          </form>
-        </section>
+              <label class="projection-toggle" for="include-current-week">
+                <input id="include-current-week" type="checkbox" />
+                Include current week projected payout (estimate)
+              </label>
+            </form>
+          </section>
+        </div>
 
         <p id="status" class="status" aria-live="polite"></p>
 
@@ -222,20 +224,22 @@
       </section>
 
       <section id="leaderboard-view" class="view-page hidden">
-        <header class="hero hero-global">
-          <div class="hero-eyebrow">
-            <span class="hero-caption-line" aria-hidden="true"></span>
-            <p>SYSTEM_ACCESS_GRANTED</p>
-          </div>
-          <h1 class="hero-title hero-title-stacked">
-            <span class="hero-title-main">GLOBAL</span>
-            <span class="hero-title-accent">LEADERBOARD</span>
-          </h1>
-          <p class="hero-description">
-            RANKING THE TOP HEROES BY ACCUMULATED REWARDS
-            <span class="hero-version">V.2.0.4</span>
-          </p>
-        </header>
+        <div class="page-header-shell page-header-shell-leaderboard">
+          <header class="hero hero-global">
+            <div class="hero-eyebrow">
+              <span class="hero-caption-line" aria-hidden="true"></span>
+              <p>SYSTEM_ACCESS_GRANTED</p>
+            </div>
+            <h1 class="hero-title hero-title-stacked">
+              <span class="hero-title-main">GLOBAL</span>
+              <span class="hero-title-accent">LEADERBOARD</span>
+            </h1>
+            <p class="hero-description">
+              RANKING THE TOP PLAYERS BY ACCUMULATED REWARDS
+              <span class="hero-version">V.2.0.4</span>
+            </p>
+          </header>
+        </div>
 
         <p id="leaderboard-status" class="status" aria-live="polite"></p>
 
