@@ -8,11 +8,17 @@ const leaderboardView = document.querySelector("#leaderboard-view");
 const statsViewBtn = document.querySelector("#view-stats-btn");
 const leaderboardViewBtn = document.querySelector("#view-leaderboard-btn");
 const backToStatsBtn = document.querySelector("#back-to-stats-btn");
+const statsHeroTitleMain = document.querySelector("#stats-hero-title-main");
+const statsHeroTitleAccent = document.querySelector("#stats-hero-title-accent");
+const statsHeroCaption = document.querySelector("#stats-hero-caption");
 
 const walletTitle = document.querySelector("#wallet-title");
 const walletSubtitle = document.querySelector("#wallet-subtitle");
 const profileAvatar = document.querySelector("#profile-avatar");
 const netPill = document.querySelector("#net-pill");
+const netPillLabel = document.querySelector("#net-pill-label");
+const netPillValue = document.querySelector("#net-pill-value");
+const netPillMeta = document.querySelector("#net-pill-meta");
 const projectedWeekPill = document.querySelector("#projected-week-pill");
 const walletLogLines = document.querySelector("#wallet-log-lines");
 
@@ -22,9 +28,13 @@ const jackpotEth = document.querySelector("#jackpot-eth");
 const totalEth = document.querySelector("#total-eth");
 
 const keysCount = document.querySelector("#keys-count");
-const keysEvents = document.querySelector("#keys-events");
 const weeklyEvents = document.querySelector("#weekly-events");
 const jackpotEvents = document.querySelector("#jackpot-events");
+const keysBoughtTotal = document.querySelector("#keys-bought-total");
+const purchaseEventsTotal = document.querySelector("#purchase-events-total");
+const weeksPlayedTotal = document.querySelector("#weeks-played-total");
+const jackpotsWonTotal = document.querySelector("#jackpots-won-total");
+const statsFooterWallet = document.querySelector("#stats-footer-wallet");
 const copyImageBtn = document.querySelector("#copy-image-btn");
 const shareStatus = document.querySelector("#share-status");
 const panelGhost = document.querySelector(".panel-ghost");
@@ -60,6 +70,8 @@ const DECOR_GHOST_FALLBACK = "/assets/ghost.gif";
 const DEFAULT_GLOBAL_LEADERBOARD_LIMIT = 10;
 const LOG_TYPING_INTERVAL_MS = 14;
 const LOG_LINE_STAGGER_MS = 120;
+const HERO_SCRAMBLE_FRAME_MS = 34;
+const HERO_SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_/";
 
 let selectedProfile = null;
 let lastSearchToken = 0;
@@ -83,6 +95,8 @@ let leaderboardOffset = 0;
 let leaderboardTotalRows = 0;
 let logAnimationToken = 0;
 let logAnimationTimers = [];
+let heroScrambleToken = 0;
+let currentStatsHeroMode = "";
 
 const toTeamRevenueWei = (keySpendWei) => (keySpendWei * TEAM_REVENUE_BPS) / 10_000n;
 
@@ -216,7 +230,29 @@ function renderWalletLogs(lines, options = {}) {
 
 function setProjectionModeLabel(enabled) {
   if (!projectedWeekPill) return;
-  projectedWeekPill.textContent = enabled ? "Projection mode: current week included" : "Projection mode: disabled";
+  projectedWeekPill.textContent = enabled ? "Projection mode current week included" : "Projection mode disabled";
+}
+
+function setProfitSummary(netProfitWei) {
+  if (!netPill || !netPillLabel || !netPillValue || !netPillMeta) return;
+
+  const profitEth = formatEth(netProfitWei);
+  const signedProfit = netProfitWei > 0n ? `+${profitEth}` : profitEth;
+  let state = "neutral";
+  let meta = "Break even";
+
+  if (netProfitWei > 0n) {
+    state = "positive";
+    meta = "Net return";
+  } else if (netProfitWei < 0n) {
+    state = "negative";
+    meta = "Under water";
+  }
+
+  netPill.dataset.state = state;
+  netPillLabel.textContent = "Profit";
+  netPillValue.textContent = signedProfit;
+  netPillMeta.textContent = meta;
 }
 
 function renderDefaultLogs() {
@@ -224,6 +260,90 @@ function renderDefaultLogs() {
     { time: "[boot]", message: "SYSTEM IDLE. AWAITING USER INPUT.", accent: true },
     { time: "[hint]", message: "Search by Abstract username or wallet address.", accent: false },
   ], { animate: true });
+}
+
+function randomScrambleChar() {
+  if (window.crypto?.getRandomValues) {
+    const buf = new Uint32Array(1);
+    window.crypto.getRandomValues(buf);
+    return HERO_SCRAMBLE_CHARS[buf[0] % HERO_SCRAMBLE_CHARS.length];
+  }
+  return HERO_SCRAMBLE_CHARS[Math.floor(Math.random() * HERO_SCRAMBLE_CHARS.length)];
+}
+
+function scrambleText(text, revealedCount) {
+  return text
+    .split("")
+    .map((char, index) => {
+      if (char === " ") return " ";
+      if (index < revealedCount) return char;
+      return randomScrambleChar();
+    })
+    .join("");
+}
+
+function animateScrambleText(element, finalText, stepOffset, token) {
+  if (!element) return;
+
+  const steps = Math.max(finalText.replaceAll(" ", "").length + 5, 8);
+  let frame = 0;
+
+  const tick = () => {
+    if (token !== heroScrambleToken) return;
+
+    const revealedCount = Math.max(0, frame - stepOffset);
+    if (revealedCount >= finalText.length) {
+      element.textContent = finalText;
+      return;
+    }
+
+    element.textContent = scrambleText(finalText, revealedCount);
+    frame += 1;
+    window.setTimeout(tick, HERO_SCRAMBLE_FRAME_MS);
+  };
+
+  tick();
+}
+
+function setStatsHeroMode(mode, options = {}) {
+  const nextMode = mode === "wallet" ? "wallet" : "stats";
+  const target =
+    nextMode === "wallet"
+      ? {
+          main: "PLAYER_",
+          accent: "STATS",
+          caption: "PLAYER INTERFACE // WALLET ACCESS",
+        }
+      : {
+          main: "GLOBAL_",
+          accent: "STATS",
+          caption: "PROTOCOL INTERFACE // ARCHIVE ACCESS",
+        };
+
+  if (
+    currentStatsHeroMode === nextMode &&
+    !options.force &&
+    statsHeroTitleMain?.textContent === target.main &&
+    statsHeroTitleAccent?.textContent === target.accent &&
+    statsHeroCaption?.textContent === target.caption
+  ) {
+    return;
+  }
+
+  currentStatsHeroMode = nextMode;
+  heroScrambleToken += 1;
+  const token = heroScrambleToken;
+
+  if (options.animate === false) {
+    if (statsHeroTitleMain) statsHeroTitleMain.textContent = target.main;
+    if (statsHeroTitleAccent) statsHeroTitleAccent.textContent = target.accent;
+    if (statsHeroCaption) statsHeroCaption.textContent = target.caption;
+    return;
+  }
+
+  animateScrambleText(statsHeroTitleMain, target.main, 0, token);
+  animateScrambleText(statsHeroTitleAccent, target.accent, 2, token);
+  animateScrambleText(statsHeroCaption, target.caption, 4, token);
 }
 
 function setCurrentView(view, options = {}) {
@@ -239,6 +359,7 @@ function setCurrentView(view, options = {}) {
   backToStatsBtn.classList.toggle("hidden", !isWallet);
   statsViewBtn.classList.toggle("is-active", !isLeaderboard);
   leaderboardViewBtn.classList.toggle("is-active", isLeaderboard);
+  setStatsHeroMode(isWallet ? "wallet" : "stats", { animate: options.animateHero !== false });
 
   if (isWallet) {
     homeGlobalCard.classList.add("hidden");
@@ -275,8 +396,7 @@ function showError(message) {
   statusEl.textContent = message;
   card.classList.add("hidden");
   currentCardData = null;
-  projectedWeekNote.textContent = "";
-  projectedWeekNote.classList.add("hidden");
+  projectedWeekNote.textContent = "Share-ready snapshot";
   setProjectionModeLabel(includeCurrentWeekProjected);
   renderWalletLogs([{ time: "[error]", message: message, accent: true }], { animate: true });
   showShareStatus("");
@@ -442,10 +562,8 @@ function renderGlobalStats(payload) {
     } else {
       globalProjectedWeekNote.textContent = `Projected current week global payout (Week ${weekNumber}): +${formatEth(projectedGlobalPoolWei)} ETH`;
     }
-    globalProjectedWeekNote.classList.remove("hidden");
   } else {
-    globalProjectedWeekNote.textContent = "";
-    globalProjectedWeekNote.classList.add("hidden");
+    globalProjectedWeekNote.textContent = "All-time snapshot. Enable projection to include the current week estimate.";
   }
 
   homeGlobalStatus.textContent = "";
@@ -822,6 +940,7 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
 
   const weeklyClaimAmountWithProjection = weeklyClaimAmount + projectedWeekPayoutWei;
   const totalClaims = weeklyClaimAmountWithProjection + jackpotClaimAmount;
+  const netProfitWei = totalClaims - keyPurchaseAmount;
   currentWallet = stats.wallet;
 
   setProfileIdentity(stats.wallet, profile);
@@ -830,20 +949,21 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
   const weeklyClaimEth = formatEth(weeklyClaimAmountWithProjection);
   const jackpotClaimEth = formatEth(jackpotClaimAmount);
   const totalClaimsEth = formatEth(totalClaims);
+  const netProfitEth = formatEth(netProfitWei);
   const shortWalletValue = shortAddress(stats.wallet);
   const profileName = profile?.name?.trim() || "";
   const displayName = profileName || shortWalletValue;
   const avatarUrl = profile?.image?.trim() || "";
 
-  keysEth.textContent = `${keyPurchaseEth} ETH`;
+  keysEth.textContent = keyPurchaseEth;
 
-  weeklyEth.textContent = `${weeklyClaimEth} ETH`;
+  weeklyEth.textContent = weeklyClaimEth;
 
-  jackpotEth.textContent = `${jackpotClaimEth} ETH`;
+  jackpotEth.textContent = jackpotClaimEth;
 
-  totalEth.textContent = `${totalClaimsEth} ETH`;
+  totalEth.textContent = totalClaimsEth;
 
-  netPill.textContent = `TOTAL REWARDS ${totalClaimsEth} ETH`;
+  setProfitSummary(netProfitWei);
 
   const keysPurchased = BigInt(stats.keysPurchased).toString();
   const keyPurchaseEvents = BigInt(stats.keyPurchaseEvents).toString();
@@ -851,9 +971,13 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
   const jackpotClaimEvents = BigInt(stats.jackpotClaimEvents).toString();
 
   keysCount.textContent = `Keys bought: ${keysPurchased}`;
-  keysEvents.textContent = `Purchase events: ${keyPurchaseEvents}`;
-  weeklyEvents.textContent = `Weekly events: ${weeklyClaimEvents}`;
-  jackpotEvents.textContent = `Jackpot events: ${jackpotClaimEvents}`;
+  weeklyEvents.textContent = `Weeks played: ${weeklyClaimEvents}`;
+  jackpotEvents.textContent = `Jackpots won: ${jackpotClaimEvents}`;
+  if (keysBoughtTotal) keysBoughtTotal.textContent = keysPurchased;
+  if (purchaseEventsTotal) purchaseEventsTotal.textContent = keyPurchaseEvents;
+  if (weeksPlayedTotal) weeksPlayedTotal.textContent = weeklyClaimEvents;
+  if (jackpotsWonTotal) jackpotsWonTotal.textContent = jackpotClaimEvents;
+  if (statsFooterWallet) statsFooterWallet.textContent = shortWalletValue;
   setProjectionModeLabel(includeProjection);
 
   if (includeProjection) {
@@ -864,10 +988,8 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
     } else {
       projectedWeekNote.textContent = `Projected current week payout (Week ${weekNumber}): +${projectedEth} ETH`;
     }
-    projectedWeekNote.classList.remove("hidden");
   } else {
-    projectedWeekNote.textContent = "";
-    projectedWeekNote.classList.add("hidden");
+    projectedWeekNote.textContent = "Share-ready snapshot";
   }
 
   const projectionLogMessage = includeProjection
@@ -893,15 +1015,19 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
     displayName,
     shortWallet: shortWalletValue,
     avatarUrl,
+    verification: profile?.verification?.trim() || "",
     keySpendEth: keyPurchaseEth,
     weeklyClaimsEth: weeklyClaimEth,
     jackpotClaimsEth: jackpotClaimEth,
     totalClaimsEth,
     summaryEth: totalClaimsEth,
+    netProfitEth,
     keysBought: keysPurchased,
     purchaseEvents: keyPurchaseEvents,
     weeklyEvents: weeklyClaimEvents,
     jackpotEvents: jackpotClaimEvents,
+    projectionMode: includeProjection ? "Current week included" : "Disabled",
+    projectionNote: includeProjection ? projectedWeekNote.textContent : "",
     decorGif: selectedDecorGif || DECOR_GHOST_FALLBACK,
   };
 }
@@ -1196,7 +1322,7 @@ async function bootstrapFromQueryParam() {
   const url = new URL(window.location.href);
   const view = (url.searchParams.get("view") || "stats").trim().toLowerCase();
   if (view === "leaderboard") {
-    setCurrentView("leaderboard", { syncUrl: false });
+    setCurrentView("leaderboard", { syncUrl: false, animateHero: false });
     try {
       await loadOverviewData();
     } catch (error) {
@@ -1217,7 +1343,7 @@ async function bootstrapFromQueryParam() {
     return;
   }
 
-  setCurrentView("stats", { syncUrl: false });
+  setCurrentView("stats", { syncUrl: false, animateHero: false });
   try {
     await loadOverviewData();
   } catch (error) {
@@ -1230,6 +1356,7 @@ async function initializePage() {
   includeGlobalCurrentWeekProjected = Boolean(includeCurrentWeekGlobalCheckbox.checked);
   leaderboardPageSize = Number.parseInt(leaderboardPageSizeSelect.value, 10) || DEFAULT_GLOBAL_LEADERBOARD_LIMIT;
   leaderboardOffset = 0;
+  setStatsHeroMode("stats", { animate: false, force: true });
   await loadDecorGifOptions();
   applyRandomDecorGif();
   await bootstrapFromQueryParam();

@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { extname, join } from "node:path";
 import { URL, fileURLToPath } from "node:url";
-import { Resvg } from "@resvg/resvg-js";
+import { renderPlayerCardImage as renderPlayerCardImageApi } from "./api/_lib/core.js";
 
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 4173);
@@ -1062,35 +1062,7 @@ const app = createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/player-card-image") {
       const body = await parseRequestBody(req);
-      const payload = parseCardPayload(body);
-      const assets = await loadCardRenderAssets();
-
-      let avatarDataUrl = "";
-      if (payload.avatarUrl) {
-        try {
-          const avatar = await fetchAvatarImage(payload.avatarUrl);
-          avatarDataUrl = `data:${avatar.contentType};base64,${avatar.body.toString("base64")}`;
-        } catch {
-          avatarDataUrl = "";
-        }
-      }
-
-      const decorDataUrl = assets.decorByPath[payload.decorGif] || assets.decorFallback;
-      const svg = buildPlayerCardSvg(payload, avatarDataUrl, assets, decorDataUrl);
-      const resvg = new Resvg(svg, {
-        fitTo: {
-          mode: "width",
-          value: CARD_IMAGE_WIDTH,
-        },
-        font: {
-          fontFiles: CARD_FONT_FILES,
-          loadSystemFonts: false,
-          defaultFontFamily: "Noto Sans",
-        },
-      });
-
-      const pngData = resvg.render();
-      const pngBuffer = pngData.asPng();
+      const pngBuffer = await renderPlayerCardImageApi(body);
 
       res.writeHead(200, {
         "Content-Type": "image/png",

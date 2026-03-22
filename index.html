@@ -51,12 +51,12 @@
             <div class="hero-toolbar">
               <div>
                 <h1 class="hero-title">
-                  <span class="hero-title-main">SYSTEM_</span>
-                  <span class="hero-title-accent">STATS</span>
+                  <span id="stats-hero-title-main" class="hero-title-main">GLOBAL_</span>
+                  <span id="stats-hero-title-accent" class="hero-title-accent">STATS</span>
                 </h1>
                 <div class="hero-caption">
                   <span class="hero-caption-line" aria-hidden="true"></span>
-                  <p>PROTOCOL INTERFACE // ARCHIVE ACCESS</p>
+                  <p id="stats-hero-caption">PROTOCOL INTERFACE // ARCHIVE ACCESS</p>
                 </div>
               </div>
               <button id="back-to-stats-btn" type="button" class="back-btn hidden">Back To Stats</button>
@@ -101,49 +101,63 @@
         <p id="status" class="status" aria-live="polite"></p>
 
         <article id="home-global-card" class="stats-panel hidden">
-          <div class="stats-panel-head">
-            <div class="terminal-chip">global_overview.json</div>
-            <label class="projection-toggle projection-toggle-inline" for="include-current-week-global">
-              <input id="include-current-week-global" type="checkbox" />
-              Include current week projected payout (estimate)
-            </label>
+          <div class="global-surface">
+            <div class="stats-panel-head global-panel-head">
+              <div class="terminal-chip">global_overview.json</div>
+              <label class="projection-toggle projection-toggle-inline" for="include-current-week-global">
+                <input id="include-current-week-global" type="checkbox" />
+                Include current week projected payout (estimate)
+              </label>
+            </div>
+            <p id="home-global-status" class="status status-inline" aria-live="polite"></p>
+
+            <div class="global-overview-top">
+              <div class="global-overview-copy">
+                <p class="global-overview-kicker">Protocol snapshot</p>
+                <h2 class="global-overview-title">Global Stats</h2>
+                <p id="global-projected-week-note" class="global-overview-note">All-time snapshot</p>
+              </div>
+
+              <section class="summary-card global-summary-card" aria-label="Global total claims">
+                <p class="summary-card-label">Total Claims</p>
+                <div class="summary-card-value-row">
+                  <strong id="g-total-claims" class="summary-card-value">-</strong>
+                </div>
+                <p class="summary-card-meta">Protocol rewards paid out</p>
+              </section>
+            </div>
+
+            <div class="global-metrics">
+              <div class="global-metric-card global-metric-card-accent">
+                <p>Unique Players</p>
+                <strong id="g-players">-</strong>
+              </div>
+              <div class="global-metric-card">
+                <p>Keys Bought</p>
+                <strong id="g-keys">-</strong>
+              </div>
+              <div class="global-metric-card">
+                <p>Key Spend</p>
+                <strong id="g-key-spend">-</strong>
+              </div>
+              <div class="global-metric-card">
+                <p>Team Revenue</p>
+                <strong id="g-team-revenue">-</strong>
+              </div>
+              <div class="global-metric-card">
+                <p>Weekly Claims</p>
+                <strong id="g-weekly-claims">-</strong>
+              </div>
+              <div class="global-metric-card">
+                <p>Jackpot Claims</p>
+                <strong id="g-jackpot-claims">-</strong>
+              </div>
+              <div class="global-metric-card">
+                <p>Claim Events</p>
+                <strong id="g-claim-events">-</strong>
+              </div>
+            </div>
           </div>
-          <p id="home-global-status" class="status status-inline" aria-live="polite"></p>
-          <div class="global-metrics">
-            <div class="global-metric-card">
-              <p>Unique Players</p>
-              <strong id="g-players">-</strong>
-            </div>
-            <div class="global-metric-card">
-              <p>Keys Bought</p>
-              <strong id="g-keys">-</strong>
-            </div>
-            <div class="global-metric-card">
-              <p>Key Spend</p>
-              <strong id="g-key-spend">-</strong>
-            </div>
-            <div class="global-metric-card">
-              <p>Total Claims</p>
-              <strong id="g-total-claims">-</strong>
-            </div>
-            <div class="global-metric-card">
-              <p>Weekly Claims</p>
-              <strong id="g-weekly-claims">-</strong>
-            </div>
-            <div class="global-metric-card">
-              <p>Jackpot Claims</p>
-              <strong id="g-jackpot-claims">-</strong>
-            </div>
-            <div class="global-metric-card">
-              <p>Team Revenue</p>
-              <strong id="g-team-revenue">-</strong>
-            </div>
-            <div class="global-metric-card">
-              <p>Claim Events</p>
-              <strong id="g-claim-events">-</strong>
-            </div>
-          </div>
-          <p id="global-projected-week-note" class="projected-week-note hidden"></p>
         </article>
 
         <article id="stats-card" class="stats-panel hidden">
@@ -158,7 +172,14 @@
                     <p id="wallet-subtitle" class="wallet-subtitle"></p>
                   </div>
                 </div>
-                <span id="net-pill" class="summary-pill">TOTAL REWARDS 0 ETH</span>
+                <section id="net-pill" class="summary-card" aria-label="Profit summary">
+                  <p id="net-pill-label" class="summary-card-label">Profit</p>
+                  <div class="summary-card-value-row">
+                    <strong id="net-pill-value" class="summary-card-value">0</strong>
+                    <span class="summary-card-unit">ETH</span>
+                  </div>
+                  <p id="net-pill-meta" class="summary-card-meta">Break even</p>
+                </section>
               </div>
             </header>
 
@@ -167,7 +188,10 @@
             <div class="stats-grid">
               <section class="metric-card metric-card-primary">
                 <p class="metric-label">Total Rewards</p>
-                <strong id="total-eth">-</strong>
+                <div class="metric-value-row">
+                  <strong id="total-eth">-</strong>
+                  <span class="metric-value-unit">ETH</span>
+                </div>
                 <div class="metric-meter">
                   <span class="metric-meter-bar metric-meter-bar-primary"></span>
                 </div>
@@ -175,29 +199,65 @@
 
               <section class="metric-card">
                 <p class="metric-label">Key Spend</p>
-                <strong id="keys-eth">-</strong>
+                <div class="metric-value-row">
+                  <strong id="keys-eth">-</strong>
+                  <span class="metric-value-unit">ETH</span>
+                </div>
                 <p id="keys-count" class="metric-subline">Keys bought: -</p>
               </section>
 
               <section class="metric-card">
                 <p class="metric-label">Weekly Claims</p>
-                <strong id="weekly-eth">-</strong>
-                <p id="weekly-events" class="metric-subline">Weekly events: -</p>
+                <div class="metric-value-row">
+                  <strong id="weekly-eth">-</strong>
+                  <span class="metric-value-unit">ETH</span>
+                </div>
+                <p id="weekly-events" class="metric-subline">Weeks played: -</p>
               </section>
 
               <section class="metric-card">
                 <p class="metric-label">Jackpot Claims</p>
-                <strong id="jackpot-eth">-</strong>
-                <p id="jackpot-events" class="metric-subline">Jackpot events: -</p>
+                <div class="metric-value-row">
+                  <strong id="jackpot-eth">-</strong>
+                  <span class="metric-value-unit">ETH</span>
+                </div>
+                <p id="jackpot-events" class="metric-subline">Jackpots won: -</p>
               </section>
             </div>
 
-            <div class="meta-grid">
-              <span id="keys-events">Purchase events: -</span>
-              <span id="projected-week-pill">Projection mode: disabled</span>
+            <div class="secondary-stats-grid">
+              <section class="secondary-stat-card secondary-stat-card-accent">
+                <p class="secondary-stat-label">Keys Bought</p>
+                <strong id="keys-bought-total" class="secondary-stat-value">-</strong>
+              </section>
+              <section class="secondary-stat-card">
+                <p class="secondary-stat-label">Purchase Events</p>
+                <strong id="purchase-events-total" class="secondary-stat-value">-</strong>
+              </section>
+              <section class="secondary-stat-card">
+                <p class="secondary-stat-label">Weeks Played</p>
+                <strong id="weeks-played-total" class="secondary-stat-value">-</strong>
+              </section>
+              <section class="secondary-stat-card">
+                <p class="secondary-stat-label">Jackpots Won</p>
+                <strong id="jackpots-won-total" class="secondary-stat-value">-</strong>
+              </section>
             </div>
 
-            <p id="projected-week-note" class="projected-week-note hidden"></p>
+            <div class="stats-footer-card">
+              <div class="stats-footer-block">
+                <p class="stats-footer-label">Wallet</p>
+                <strong id="stats-footer-wallet" class="stats-footer-value">-</strong>
+              </div>
+              <div class="stats-footer-block stats-footer-block-wide">
+                <p id="projected-week-pill" class="stats-footer-label">Projection mode disabled</p>
+                <p id="projected-week-note" class="stats-footer-note">Share-ready snapshot</p>
+              </div>
+              <div class="stats-footer-block stats-footer-block-brand">
+                <p class="stats-footer-label">MOG Wallet Stats</p>
+                <strong class="stats-footer-value">Player Card</strong>
+              </div>
+            </div>
           </div>
 
           <section class="share-tools" aria-label="Card tools">
