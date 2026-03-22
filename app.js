@@ -37,13 +37,14 @@ const globalKeySpend = document.querySelector("#g-key-spend");
 const globalTotalClaims = document.querySelector("#g-total-claims");
 const globalWeeklyClaims = document.querySelector("#g-weekly-claims");
 const globalJackpotClaims = document.querySelector("#g-jackpot-claims");
-const globalNet = document.querySelector("#g-net");
+const globalTeamRevenue = document.querySelector("#g-team-revenue");
 const globalClaimEvents = document.querySelector("#g-claim-events");
 const leaderboardCount = document.querySelector("#leaderboard-count");
 const leaderboardBody = document.querySelector("#leaderboard-body");
 
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const WEI_IN_ETH = 10n ** 18n;
+const TEAM_REVENUE_BPS = 1000n;
 const SEARCH_DEBOUNCE_MS = 180;
 const COPY_SOUND_URL = "/assets/copy.mp3";
 const DECOR_GHOST_FALLBACK = "/assets/ghost.gif";
@@ -65,11 +66,7 @@ let currentView = "wallet";
 let globalLoaded = false;
 let globalLoadedProjectionMode = false;
 
-const withSign = (valueWei) => {
-  if (valueWei > 0n) return `+${formatEth(valueWei)} ETH`;
-  if (valueWei < 0n) return `${formatEth(valueWei)} ETH`;
-  return "0 ETH";
-};
+const toTeamRevenueWei = (keySpendWei) => (keySpendWei * TEAM_REVENUE_BPS) / 10_000n;
 
 function shortAddress(address) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -167,16 +164,26 @@ function showGlobalError(message) {
 }
 
 function renderLeaderboardRows(rows) {
-  if (!rows.length) {
+  const sortedRows = [...rows].sort((left, right) => {
+    const revenueDiff = toTeamRevenueWei(parseWei(right.keyPurchaseAmount)) - toTeamRevenueWei(parseWei(left.keyPurchaseAmount));
+    if (revenueDiff !== 0n) return revenueDiff > 0n ? 1 : -1;
+
+    const claimsDiff = parseWei(right.totalClaimAmount) - parseWei(left.totalClaimAmount);
+    if (claimsDiff !== 0n) return claimsDiff > 0n ? 1 : -1;
+
+    return String(left.wallet || "").localeCompare(String(right.wallet || ""));
+  });
+
+  if (!sortedRows.length) {
     leaderboardBody.innerHTML = `<tr><td colspan="5">No player rows available yet.</td></tr>`;
-    leaderboardCount.textContent = "0 rows";
+    leaderboardCount.textContent = "0 players";
     return;
   }
 
-  leaderboardBody.innerHTML = rows
+  leaderboardBody.innerHTML = sortedRows
     .map((row, index) => {
       const wallet = (row.wallet || "").toLowerCase();
-      const net = parseWei(row.netProfitAmount);
+      const teamRevenue = toTeamRevenueWei(parseWei(row.keyPurchaseAmount));
       const totalClaims = parseWei(row.totalClaimAmount);
       const keySpend = parseWei(row.keyPurchaseAmount);
       const walletLabel = WALLET_REGEX.test(wallet) ? shortAddress(wallet) : wallet;
@@ -208,7 +215,7 @@ function renderLeaderboardRows(rows) {
               </span>
             </button>
           </td>
-          <td>${withSign(net)}</td>
+          <td>${formatEth(teamRevenue)} ETH</td>
           <td>${formatEth(totalClaims)} ETH</td>
           <td>${formatEth(keySpend)} ETH</td>
         </tr>
@@ -216,7 +223,7 @@ function renderLeaderboardRows(rows) {
     })
     .join("");
 
-  leaderboardCount.textContent = `${rows.length} rows`;
+  leaderboardCount.textContent = `${sortedRows.length} players`;
 }
 
 function renderGlobalStats(payload) {
@@ -230,14 +237,13 @@ function renderGlobalStats(payload) {
   const totalClaimsWei = parseWei(global.totalClaimAmount);
   const weeklyClaimsWei = parseWei(global.weeklyClaimAmount);
   const jackpotClaimsWei = parseWei(global.jackpotClaimAmount);
-  const netWei = parseWei(global.netProfitAmount);
+  const teamRevenueWei = toTeamRevenueWei(keySpendWei);
   const projectedGlobalPoolWei =
     includeGlobalCurrentWeekProjected && payload?.currentWeekGlobalProjection?.weeklyPoolWei
       ? parseWei(payload.currentWeekGlobalProjection.weeklyPoolWei)
       : 0n;
   const weeklyClaimsWithProjectionWei = weeklyClaimsWei + projectedGlobalPoolWei;
   const totalClaimsWithProjectionWei = totalClaimsWei + projectedGlobalPoolWei;
-  const netWithProjectionWei = netWei + projectedGlobalPoolWei;
 
   globalPlayers.textContent = formatInt(global.totalUniquePlayers);
   globalKeys.textContent = formatInt(global.keysPurchased);
@@ -246,10 +252,7 @@ function renderGlobalStats(payload) {
   globalWeeklyClaims.textContent = `${formatEth(weeklyClaimsWithProjectionWei)} ETH`;
   globalJackpotClaims.textContent = `${formatEth(jackpotClaimsWei)} ETH`;
   globalClaimEvents.textContent = formatInt(parseWei(global.weeklyClaimEvents) + parseWei(global.jackpotClaimEvents));
-  globalNet.textContent = `${withSign(netWithProjectionWei)}`;
-  globalNet.classList.remove("positive", "negative");
-  if (netWithProjectionWei > 0n) globalNet.classList.add("positive");
-  if (netWithProjectionWei < 0n) globalNet.classList.add("negative");
+  globalTeamRevenue.textContent = `${formatEth(teamRevenueWei)} ETH`;
 
   if (includeGlobalCurrentWeekProjected) {
     const weekNumber = payload?.currentWeekGlobalProjection?.weekNumber ?? "?";
@@ -619,7 +622,6 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
 
   const weeklyClaimAmountWithProjection = weeklyClaimAmount + projectedWeekPayoutWei;
   const totalClaims = weeklyClaimAmountWithProjection + jackpotClaimAmount;
-  const net = totalClaims - keyPurchaseAmount;
   currentWallet = stats.wallet;
 
   setProfileIdentity(stats.wallet, profile);
@@ -628,7 +630,6 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
   const weeklyClaimEth = formatEth(weeklyClaimAmountWithProjection);
   const jackpotClaimEth = formatEth(jackpotClaimAmount);
   const totalClaimsEth = formatEth(totalClaims);
-  const netText = withSign(net);
   const shortWalletValue = shortAddress(stats.wallet);
   const profileName = profile?.name?.trim() || "";
   const displayName = profileName || shortWalletValue;
@@ -642,10 +643,7 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
 
   totalEth.textContent = `${totalClaimsEth} ETH`;
 
-  netPill.classList.remove("net-positive", "net-negative");
-  if (net > 0n) netPill.classList.add("net-positive");
-  if (net < 0n) netPill.classList.add("net-negative");
-  netPill.textContent = `Net ${netText}`;
+  netPill.textContent = `Total rewards ${totalClaimsEth} ETH`;
 
   const keysPurchased = BigInt(stats.keysPurchased).toString();
   const keyPurchaseEvents = BigInt(stats.keyPurchaseEvents).toString();
@@ -684,7 +682,7 @@ function showStats(stats, profile = null, currentWeekProjected = null, includePr
     weeklyClaimsEth: weeklyClaimEth,
     jackpotClaimsEth: jackpotClaimEth,
     totalClaimsEth,
-    netEth: netText.replace(" ETH", ""),
+    summaryEth: totalClaimsEth,
     keysBought: keysPurchased,
     purchaseEvents: keyPurchaseEvents,
     weeklyEvents: weeklyClaimEvents,

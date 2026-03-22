@@ -5,7 +5,7 @@ One-page wallet stats app for MOG on Abstract.
 - Frontend is static (`index.html`, `app.js`, `styles.css`)
 - Backend runs as Vercel Serverless Functions (`/api/*`)
 - `Copy as Image` uses server-rendered PNG for stable output
-- Includes a `General stats` view with global aggregates + profit leaderboard (realized onchain fields) and an optional projected-current-week toggle
+- Includes a `General stats` view with global aggregates + top players leaderboard and an optional projected-current-week toggle
 
 ## Run Locally
 
@@ -48,12 +48,11 @@ pnpm dev:vercel
 
 ## GraphQL Schema Requirement
 
-The `General stats` page expects these indexed fields on `GlobalStats` and `PlayerStats`:
+The `General stats` page expects this indexed field on `GlobalStats` and `PlayerStats`:
 
 - `totalClaimAmount`
-- `netProfitAmount`
 
-If your deployed indexer does not expose these fields yet, deploy/reindex the latest `mog-indexer` schema + handlers first.
+If your deployed indexer does not expose it yet, deploy/reindex the latest `mog-indexer` schema + handlers first.
 
 Optional global projection details:
 

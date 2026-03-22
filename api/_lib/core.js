@@ -89,11 +89,10 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
     jackpotClaimEvents
     jackpotClaimAmount
     totalClaimAmount
-    netProfitAmount
     updatedAtTimestamp
   }
   PlayerStats(
-    order_by: [{ netProfitAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    order_by: [{ keyPurchaseAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
     limit: $limit
   ) {
     wallet
@@ -108,7 +107,6 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
     jackpotClaimEvents
     jackpotClaimAmount
     totalClaimAmount
-    netProfitAmount
   }
 }
 `;
@@ -125,11 +123,10 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
     jackpotClaimEvents
     jackpotClaimAmount
     totalClaimAmount
-    netProfitAmount
     updatedAtTimestamp
   }
   PlayerStats(
-    order_by: [{ netProfitAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
+    order_by: [{ keyPurchaseAmount: desc }, { totalClaimAmount: desc }, { wallet: asc }]
     limit: $limit
   ) {
     wallet
@@ -141,7 +138,6 @@ query GlobalStatsAndLeaderboard($limit: Int!) {
     jackpotClaimEvents
     jackpotClaimAmount
     totalClaimAmount
-    netProfitAmount
   }
 }
 `;
@@ -276,8 +272,8 @@ export const fetchGlobalStats = async (limit = 100, options = {}) => {
       message.includes("profileVerification")
     ) {
       body = await fetchGraphql(GLOBAL_STATS_AND_LEADERBOARD_QUERY_LEGACY, { limit: cappedLimit });
-    } else if (message.includes("netProfitAmount") || message.includes("totalClaimAmount")) {
-      throw new Error("Indexer schema is outdated. Deploy the latest mog-indexer and reindex to enable global profit stats.");
+    } else if (message.includes("totalClaimAmount")) {
+      throw new Error("Indexer schema is outdated. Deploy the latest mog-indexer and reindex to enable global stats.");
     } else {
       throw error;
     }
@@ -632,7 +628,7 @@ const parseCardPayload = (body) => {
   const weeklyClaimsEth = normalizeEthString(body.weeklyClaimsEth, "0");
   const jackpotClaimsEth = normalizeEthString(body.jackpotClaimsEth, "0");
   const totalClaimsEth = normalizeEthString(body.totalClaimsEth, "0");
-  const netEth = normalizeEthString(body.netEth, "0");
+  const summaryEth = normalizeEthString(body.summaryEth, "0");
 
   const keysBought = normalizeIntegerString(body.keysBought, "0");
   const purchaseEvents = normalizeIntegerString(body.purchaseEvents, "0");
@@ -640,9 +636,6 @@ const parseCardPayload = (body) => {
   const jackpotEvents = normalizeIntegerString(body.jackpotEvents, "0");
   const avatarUrl = toLimitedString(body.avatarUrl, 600);
   const decorGif = normalizeDecorGifPath(body.decorGif);
-
-  const netNumber = Number(netEth);
-  const netTone = Number.isFinite(netNumber) ? (netNumber > 0 ? "positive" : netNumber < 0 ? "negative" : "neutral") : "neutral";
 
   return {
     wallet,
@@ -652,38 +645,21 @@ const parseCardPayload = (body) => {
     weeklyClaimsEth,
     jackpotClaimsEth,
     totalClaimsEth,
-    netEth,
+    summaryEth,
     keysBought,
     purchaseEvents,
     weeklyEvents,
     jackpotEvents,
     avatarUrl,
     decorGif,
-    netTone,
   };
 };
 
-const getNetPalette = (tone) => {
-  if (tone === "positive") {
-    return {
-      text: "#bfffd7",
-      fill: "rgba(84, 220, 150, 0.17)",
-      stroke: "rgba(120, 255, 188, 0.44)",
-    };
-  }
-
-  if (tone === "negative") {
-    return {
-      text: "#ffb8bf",
-      fill: "rgba(255, 129, 156, 0.16)",
-      stroke: "rgba(255, 155, 175, 0.45)",
-    };
-  }
-
+const getSummaryPalette = () => {
   return {
-    text: "#ffd989",
-    fill: "rgba(255, 207, 100, 0.16)",
-    stroke: "rgba(255, 207, 100, 0.4)",
+    text: "#edf7ff",
+    fill: "rgba(118, 211, 255, 0.18)",
+    stroke: "rgba(118, 211, 255, 0.38)",
   };
 };
 
@@ -781,11 +757,11 @@ const buildPlayerCardSvg = (
 
   const safeDisplayName = payload.displayName.length > 18 ? `${payload.displayName.slice(0, 17)}...` : payload.displayName;
 
-  const netPalette = getNetPalette(payload.netTone);
-  const netLabel = `Net ${payload.netEth} ETH`;
-  const netPillW = Math.max(340, Math.min(520, 90 + netLabel.length * 18));
-  const netPillX = panelX + panelW - netPillW - 28;
-  const netPillY = topPad + 2;
+  const summaryPalette = getSummaryPalette();
+  const summaryLabel = `Total rewards ${payload.summaryEth} ETH`;
+  const summaryPillW = Math.max(340, Math.min(520, 90 + summaryLabel.length * 18));
+  const summaryPillX = panelX + panelW - summaryPillW - 28;
+  const summaryPillY = topPad + 2;
 
   const statCard = (x, y, label, value, iconDataUrl = "", iconType = "") => {
     const iconW = iconType === "key" ? 40 : 42;
@@ -897,9 +873,9 @@ const buildPlayerCardSvg = (
     `(${payload.shortWallet})`,
   )}</text>
 
-  <rect x="${netPillX}" y="${netPillY}" width="${netPillW}" height="66" rx="33" fill="${netPalette.fill}" stroke="${netPalette.stroke}" stroke-width="2.5"/>
-  <text x="${netPillX + netPillW / 2}" y="${netPillY + 44}" text-anchor="middle" fill="${netPalette.text}" font-size="32" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
-    netLabel,
+  <rect x="${summaryPillX}" y="${summaryPillY}" width="${summaryPillW}" height="66" rx="33" fill="${summaryPalette.fill}" stroke="${summaryPalette.stroke}" stroke-width="2.5"/>
+  <text x="${summaryPillX + summaryPillW / 2}" y="${summaryPillY + 44}" text-anchor="middle" fill="${summaryPalette.text}" font-size="32" font-family="Noto Sans, sans-serif" font-weight="700">${escapeXml(
+    summaryLabel,
   )}</text>
 
   ${statCard(panelX + 36, statY, "KEY SPEND", payload.keySpendEth, icons.keyIcon, "key")}

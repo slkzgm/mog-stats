@@ -362,25 +362,13 @@ button:not(.view-btn):not(.leaderboard-wallet-btn):active {
   border-radius: 999px;
   padding: 7px 12px;
   font-weight: 700;
-  background: rgba(255, 207, 100, 0.18);
-  color: var(--warn);
+  background: rgba(118, 211, 255, 0.18);
+  color: var(--text);
   white-space: nowrap;
-  border: 1px solid rgba(255, 207, 100, 0.28);
+  border: 1px solid rgba(118, 211, 255, 0.28);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.pill.net-positive {
-  background: rgba(132, 255, 194, 0.15);
-  color: var(--ok);
-  border-color: rgba(132, 255, 194, 0.28);
-}
-
-.pill.net-negative {
-  background: rgba(255, 157, 157, 0.15);
-  color: var(--bad);
-  border-color: rgba(255, 157, 157, 0.3);
 }
 
 .grid {
@@ -441,6 +429,14 @@ button:not(.view-btn):not(.leaderboard-wallet-btn):active {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.stat-footnote {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .meta-grid {
@@ -526,12 +522,8 @@ button:not(.view-btn):not(.leaderboard-wallet-btn):active {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.global-net.positive {
-  color: var(--ok);
-}
-
-.global-net.negative {
-  color: var(--bad);
+.global-team-revenue {
+  color: var(--accent-2);
 }
 
 .leaderboard-wrap {

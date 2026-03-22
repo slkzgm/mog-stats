@@ -20,7 +20,7 @@
     <main class="layout">
       <section class="panel">
         <h1>MOG Wallet Stats</h1>
-        <p class="subtitle">Key purchases, weekly claims, jackpot claims, and net ETH per wallet.</p>
+        <p class="subtitle">Key purchases, rewards claimed, and player activity across MOG.</p>
         <img class="panel-ghost hidden" alt="" aria-hidden="true" />
 
         <nav class="view-switch" aria-label="View selector">
@@ -62,7 +62,7 @@
                     <p id="wallet-subtitle" class="wallet-subtitle"></p>
                   </div>
                 </div>
-                <span id="net-pill" class="pill">Net 0 ETH</span>
+                <span id="net-pill" class="pill">Total rewards 0 ETH</span>
               </header>
 
               <div class="grid">
@@ -137,8 +137,9 @@
                 <strong id="g-jackpot-claims">-</strong>
               </div>
               <div class="stat">
-                <span>Net profit</span>
-                <strong id="g-net" class="global-net">-</strong>
+                <span>Team revenue</span>
+                <strong id="g-team-revenue" class="global-team-revenue">-</strong>
+                <small class="stat-footnote">Estimated as 10% of key spend</small>
               </div>
               <div class="stat">
                 <span>Total claim events</span>
@@ -146,9 +147,9 @@
               </div>
             </div>
 
-            <section class="leaderboard-wrap" aria-label="Profit leaderboard">
+            <section class="leaderboard-wrap" aria-label="Top players leaderboard">
               <div class="leaderboard-head">
-                <h3>Profit leaderboard</h3>
+                <h3>Top players</h3>
                 <span id="leaderboard-count" class="leaderboard-count">-</span>
               </div>
               <div class="leaderboard-scroll">
@@ -157,7 +158,7 @@
                     <tr>
                       <th>#</th>
                       <th>Player</th>
-                      <th>Net</th>
+                      <th>Revenue Generated</th>
                       <th>Claims</th>
                       <th>Spend</th>
                     </tr>
