@@ -528,7 +528,6 @@ function renderLeaderboardRows(rows) {
     .map((row, index) => {
       const absoluteRank = leaderboardOffset + index;
       const wallet = (row.wallet || "").toLowerCase();
-      const teamRevenue = toTeamRevenueWei(parseWei(row.keyPurchaseAmount));
       const totalClaims = parseWei(row.totalClaimAmount);
       const keySpend = parseWei(row.keyPurchaseAmount);
       const weeklyClaims = parseWei(row.weeklyClaimAmount);
@@ -572,7 +571,7 @@ function renderLeaderboardRows(rows) {
                     <span class="leaderboard-player-name">${displayNameSafe}</span>
                   </span>
                   <span class="leaderboard-player-address">${walletLabelSafe}</span>
-                  <span class="leaderboard-player-submeta">Spend ${formatEth(keySpend)} ETH // Revenue ${formatEth(teamRevenue)} ETH</span>
+                  <span class="leaderboard-player-submeta">Spend ${formatEth(keySpend)} ETH</span>
                 </span>
               </span>
             </button>
